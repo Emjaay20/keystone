@@ -10,6 +10,7 @@
   "scripts": {
     "dev:api": "npm run dev -w @keystone/api",
     "test:api": "npm run test -w @keystone/api",
+    "test:domain": "npm run test -w @keystone/domain",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "engines": {

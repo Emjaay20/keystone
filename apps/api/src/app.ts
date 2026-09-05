@@ -3,7 +3,7 @@ import cookie from "@fastify/cookie";
 import { ZodError } from "zod";
 import type { AppEnv } from "./config/env.js";
 import type { Database } from "./db/client.js";
-import { HttpError } from "./http/errors.js";
+import { HttpError } from "@keystone/domain";
 import { authRoutes } from "./modules/auth/routes.js";
 import { orgRoutes } from "./modules/orgs/routes.js";
 
