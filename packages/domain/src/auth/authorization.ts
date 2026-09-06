@@ -1,6 +1,6 @@
 import type { Db, ObjectId } from "mongodb";
 import type { Product, GrantLevel, OrgRole } from "@keystone/shared";
-import { audit, grants, type UserDoc, type OrgDoc, type MembershipDoc, type SessionDoc } from "../db/collections.js";
+import { audit, grants, type UserDoc, type OrgDoc, type MembershipDoc, type SessionDoc, type ApiKeyDoc, type OauthTokenDoc } from "../db/collections.js";
 
 type AuthorizeOptions = {
   orgId: string | ObjectId;
@@ -15,8 +15,10 @@ type AuthorizeResult = {
   reason: string;
 };
 
-type Context = {
-  session: SessionDoc;
+export type Context = {
+  session?: SessionDoc;
+  apiKey?: ApiKeyDoc;
+  oauthToken?: OauthTokenDoc;
   user: UserDoc;
   org: OrgDoc | null;
   membership: MembershipDoc | null;
@@ -100,31 +102,43 @@ async function evaluate(
   if (options.product) {
     const orgIdObj = typeof options.orgId === "string" ? new (await import("mongodb")).ObjectId(options.orgId) : options.orgId;
     
-    const grant = await grants(db).findOne({
-      orgId: orgIdObj,
-      principalType: "user",
-      principalId: ctx.user._id,
-      product: options.product,
-    });
+    if (ctx.apiKey) {
+      if (ctx.apiKey.product !== options.product) {
+        return { allow: false, reasonCode: "wrong_product", reason: `API key is for ${ctx.apiKey.product}, not ${options.product}` };
+      }
+      if (options.productAction) {
+        const requiredLevel = options.productAction === "admin" ? "admin" : 
+                              options.productAction === "operate" ? "operate" : "view";
+        if (GRANT_LEVEL_HIERARCHY[ctx.apiKey.level] < GRANT_LEVEL_HIERARCHY[requiredLevel as GrantLevel]) {
+          return { allow: false, reasonCode: "level_too_low", reason: `API key level ${ctx.apiKey.level} is too low for action ${options.productAction}` };
+        }
+      }
+    } else {
+      const grant = await grants(db).findOne({
+        orgId: orgIdObj,
+        principalType: "user",
+        principalId: ctx.user._id,
+        product: options.product,
+      });
 
-    if (!grant || grant.level === "none") {
-      return { allow: false, reasonCode: "no_product_grant", reason: `No grant for product: ${options.product}` };
-    }
+      if (!grant || grant.level === "none") {
+        return { allow: false, reasonCode: "no_product_grant", reason: `No grant for product: ${options.product}` };
+      }
 
-    if (grant.expiresAt && grant.expiresAt < new Date()) {
-      return { allow: false, reasonCode: "grant_expired", reason: `Grant for product ${options.product} has expired` };
-    }
+      if (grant.expiresAt && grant.expiresAt < new Date()) {
+        return { allow: false, reasonCode: "grant_expired", reason: `Grant for product ${options.product} has expired` };
+      }
 
-    if (options.productAction) {
-      // Stub: always allow until Slice 05 if we had plan_feature_locked logic, but that's handled at a higher level
-      
-      const requiredLevel = options.productAction === "admin" ? "admin" : 
-                            options.productAction === "operate" ? "operate" : "view";
-                            
-      if (GRANT_LEVEL_HIERARCHY[grant.level] < GRANT_LEVEL_HIERARCHY[requiredLevel as GrantLevel]) {
-        return { allow: false, reasonCode: "level_too_low", reason: `Grant level ${grant.level} is too low for action ${options.productAction}` };
+      if (options.productAction) {
+        const requiredLevel = options.productAction === "admin" ? "admin" : 
+                              options.productAction === "operate" ? "operate" : "view";
+                              
+        if (GRANT_LEVEL_HIERARCHY[grant.level] < GRANT_LEVEL_HIERARCHY[requiredLevel as GrantLevel]) {
+          return { allow: false, reasonCode: "level_too_low", reason: `Grant level ${grant.level} is too low for action ${options.productAction}` };
+        }
       }
     }
+
   }
 
   return { allow: true, reasonCode: "allow", reason: "Authorized" };

@@ -104,3 +104,68 @@ export function grants(db: Db) {
 export function audit(db: Db) {
   return db.collection<AuditDoc>("audit");
 }
+
+export type OauthClientDoc = {
+  _id: ObjectId;
+  orgId: ObjectId;
+  name: string;
+  clientId: string;
+  clientSecretHash: string;
+  redirectUris: string[];
+  createdBy: ObjectId;
+  createdAt: Date;
+};
+
+export type OauthCodeDoc = {
+  _id: ObjectId;
+  codeHash: string;
+  clientId: string;
+  userId: ObjectId;
+  orgId: ObjectId;
+  redirectUri: string;
+  codeChallenge: string;
+  expiresAt: Date;
+  consumedAt: Date | null;
+  createdAt: Date;
+};
+
+export type OauthTokenDoc = {
+  _id: ObjectId;
+  tokenHash: string;
+  clientId: string;
+  userId: ObjectId;
+  orgId: ObjectId;
+  expiresAt: Date;
+  revokedAt: Date | null;
+  createdAt: Date;
+};
+
+export type ApiKeyDoc = {
+  _id: ObjectId;
+  orgId: ObjectId;
+  name: string;
+  prefix: string;
+  keyHash: string;
+  product: import("@keystone/shared").Product;
+  level: import("@keystone/shared").GrantLevel;
+  createdBy: ObjectId;
+  lastUsedAt: Date | null;
+  revokedAt: Date | null;
+  createdAt: Date;
+};
+
+export function oauthClients(db: Db) {
+  return db.collection<OauthClientDoc>("oauth_clients");
+}
+
+export function oauthCodes(db: Db) {
+  return db.collection<OauthCodeDoc>("oauth_codes");
+}
+
+export function oauthTokens(db: Db) {
+  return db.collection<OauthTokenDoc>("oauth_tokens");
+}
+
+export function apiKeys(db: Db) {
+  return db.collection<ApiKeyDoc>("api_keys");
+}

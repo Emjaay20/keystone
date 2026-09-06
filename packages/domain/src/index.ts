@@ -9,3 +9,5 @@ export * from "./db/collections.js";
 export * from "./security/crypto.js";
 export * from "./http/errors.js";
 export * from "./http/public.js";
+export * from "./api-keys/service.js";
+export * from "./oauth/service.js";

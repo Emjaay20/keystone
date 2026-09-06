@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSessionToken } from "@/lib/http";
-import { authorize, requireUser } from "@keystone/domain";
+import { authorize, requireUser, authenticateBearer } from "@keystone/domain";
 
 export async function GET(
   request: Request
 ) {
   try {
     const db = await getDb();
-    const token = await getSessionToken();
     
-    // 1. Get session context
-    const ctx = await requireUser(db, token);
+    // Check Authorization header first
+    const authHeader = request.headers.get("authorization") || undefined;
+    let ctx: any = await authenticateBearer(db, authHeader);
+    
+    // Fallback to cookie session
+    if (!ctx) {
+      const token = await getSessionToken();
+      ctx = await requireUser(db, token);
+    }
     
     if (!ctx.org) {
       return NextResponse.json({ error: "No active organization" }, { status: 400 });

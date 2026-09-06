@@ -24,12 +24,21 @@ export default function AppPage() {
 
   const [grants, setGrants] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [oauthClients, setOauthClients] = useState<any[]>([]);
   const [isSettingGrant, setIsSettingGrant] = useState(false);
   const [grantError, setGrantError] = useState("");
   const [grantSuccess, setGrantSuccess] = useState("");
 
   const [exportResult, setExportResult] = useState<any>(null);
   const [exportError, setExportError] = useState("");
+
+  const [newApiKeyRaw, setNewApiKeyRaw] = useState("");
+  const [apiKeyError, setApiKeyError] = useState("");
+  const [isCreatingKey, setIsCreatingKey] = useState(false);
+
+  const [oauthError, setOauthError] = useState("");
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
@@ -61,6 +70,8 @@ export default function AppPage() {
       loadGrants();
       if (user.role === "owner" || user.role === "admin") {
         loadAuditLogs();
+        loadApiKeys();
+        loadOauthClients();
       }
     }
   }, [user?.orgId, user?.role]);
@@ -78,6 +89,24 @@ export default function AppPage() {
     try {
       const res = await fetch(`/api/orgs/${user?.orgId}/audit`);
       if (res.ok) setAuditLogs(await res.json());
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadApiKeys = async () => {
+    try {
+      const res = await fetch(`/api/orgs/${user?.orgId}/api-keys`);
+      if (res.ok) setApiKeys(await res.json());
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadOauthClients = async () => {
+    try {
+      const res = await fetch(`/api/orgs/${user?.orgId}/oauth/clients`);
+      if (res.ok) setOauthClients(await res.json());
     } catch (err) {
       console.error(err);
     }
@@ -211,6 +240,82 @@ export default function AppPage() {
       }
     } catch (err: any) {
       setExportError(err.message);
+    }
+  };
+
+  const handleCreateApiKey = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setApiKeyError("");
+    setNewApiKeyRaw("");
+    setIsCreatingKey(true);
+
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get("name");
+    const product = formData.get("product");
+    const level = formData.get("level");
+
+    try {
+      const res = await fetch(`/api/orgs/${user?.orgId}/api-keys`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, product, level }),
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error("Failed to create API key");
+      
+      const data = await res.json();
+      setNewApiKeyRaw(data.rawKey);
+      (e.target as HTMLFormElement).reset();
+      loadApiKeys();
+      loadAuditLogs();
+    } catch (err: any) {
+      setApiKeyError(err.message);
+    } finally {
+      setIsCreatingKey(false);
+    }
+  };
+
+  const handleRevokeApiKey = async (keyId: string) => {
+    try {
+      const res = await fetch(`/api/orgs/${user?.orgId}/api-keys/${keyId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to revoke API key");
+      loadApiKeys();
+      loadAuditLogs();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreateOauthClient = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setOauthError("");
+    setIsCreatingClient(true);
+
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get("name");
+    const redirectUrisStr = formData.get("redirectUris") as string;
+    const redirectUris = redirectUrisStr.split(",").map(s => s.trim()).filter(Boolean);
+
+    try {
+      const res = await fetch(`/api/orgs/${user?.orgId}/oauth/clients`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, redirectUris }),
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error("Failed to create OAuth client");
+      
+      (e.target as HTMLFormElement).reset();
+      loadOauthClients();
+    } catch (err: any) {
+      setOauthError(err.message);
+    } finally {
+      setIsCreatingClient(false);
     }
   };
 
@@ -435,6 +540,137 @@ export default function AppPage() {
                   </div>
                 )}
               </div>
+
+              <div className="card">
+                <h2>API Keys</h2>
+                <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.5rem" }}>
+                  Service accounts for automated product access.
+                </p>
+
+                {apiKeyError && <div className="error-msg">{apiKeyError}</div>}
+                
+                {newApiKeyRaw && (
+                  <div style={{ padding: "1rem", backgroundColor: "rgba(34, 197, 94, 0.1)", border: "1px solid rgb(34, 197, 94)", borderRadius: "6px", marginBottom: "1.5rem" }}>
+                    <p style={{ color: "rgb(74, 222, 128)", fontWeight: 600, marginBottom: "0.5rem" }}>API Key created successfully!</p>
+                    <p style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.8)", marginBottom: "0.5rem" }}>Copy this key now. You won't be able to see it again:</p>
+                    <code style={{ display: "block", padding: "0.75rem", backgroundColor: "rgba(0,0,0,0.3)", borderRadius: "4px", wordBreak: "break-all", userSelect: "all" }}>
+                      {newApiKeyRaw}
+                    </code>
+                  </div>
+                )}
+
+                <form onSubmit={handleCreateApiKey} style={{ marginBottom: "2rem" }}>
+                  <div className="form-group">
+                    <label htmlFor="keyName">Name</label>
+                    <input id="keyName" name="name" type="text" required placeholder="Production Sync" />
+                  </div>
+                  <div style={{ display: "flex", gap: "1rem" }}>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label htmlFor="keyProduct">Product</label>
+                      <select id="keyProduct" name="product" required style={{ width: "100%", padding: "0.75rem 1rem", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid var(--card-border)", borderRadius: "8px", color: "white", outline: "none" }}>
+                        <option value="mailguard">MailGuard</option>
+                        <option value="brandwatch">BrandWatch</option>
+                        <option value="certradar">CertRadar</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label htmlFor="keyLevel">Level</label>
+                      <select id="keyLevel" name="level" required style={{ width: "100%", padding: "0.75rem 1rem", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid var(--card-border)", borderRadius: "8px", color: "white", outline: "none" }}>
+                        <option value="view">View</option>
+                        <option value="operate">Operate</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" className="btn" disabled={isCreatingKey}>
+                    {isCreatingKey ? "Creating..." : "Create API Key"}
+                  </button>
+                </form>
+
+                {apiKeys.length > 0 && (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
+                          <th style={{ padding: "0.5rem" }}>Name</th>
+                          <th style={{ padding: "0.5rem" }}>Prefix</th>
+                          <th style={{ padding: "0.5rem" }}>Product</th>
+                          <th style={{ padding: "0.5rem" }}>Level</th>
+                          <th style={{ padding: "0.5rem" }}>Status</th>
+                          <th style={{ padding: "0.5rem" }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {apiKeys.map((k) => (
+                          <tr key={k._id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", opacity: k.revokedAt ? 0.5 : 1 }}>
+                            <td style={{ padding: "0.5rem" }}>{k.name}</td>
+                            <td style={{ padding: "0.5rem" }}><code style={{ background: "rgba(0,0,0,0.3)", padding: "2px 4px", borderRadius: "4px" }}>{k.prefix}...</code></td>
+                            <td style={{ padding: "0.5rem" }}>{k.product}</td>
+                            <td style={{ padding: "0.5rem" }}>{k.level}</td>
+                            <td style={{ padding: "0.5rem" }}>{k.revokedAt ? "Revoked" : "Active"}</td>
+                            <td style={{ padding: "0.5rem" }}>
+                              {!k.revokedAt && (
+                                <button onClick={() => handleRevokeApiKey(k._id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", textDecoration: "underline" }}>Revoke</button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="card">
+                <h2>OAuth Clients</h2>
+                <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.5rem" }}>
+                  Product apps that authenticate users via PKCE.
+                </p>
+
+                {oauthError && <div className="error-msg">{oauthError}</div>}
+
+                <form onSubmit={handleCreateOauthClient} style={{ marginBottom: "2rem" }}>
+                  <div className="form-group">
+                    <label htmlFor="clientName">App Name</label>
+                    <input id="clientName" name="name" type="text" required placeholder="MailGuard Dev" />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="redirectUris">Redirect URIs (comma separated)</label>
+                    <input id="redirectUris" name="redirectUris" type="text" required placeholder="http://localhost:3000/oauth/demo" />
+                  </div>
+                  <button type="submit" className="btn" disabled={isCreatingClient}>
+                    {isCreatingClient ? "Creating..." : "Create Client"}
+                  </button>
+                </form>
+
+                {oauthClients.length > 0 && (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
+                          <th style={{ padding: "0.5rem" }}>Name</th>
+                          <th style={{ padding: "0.5rem" }}>Client ID</th>
+                          <th style={{ padding: "0.5rem" }}>Redirect URIs</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {oauthClients.map((c) => (
+                          <tr key={c._id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                            <td style={{ padding: "0.5rem" }}>{c.name}</td>
+                            <td style={{ padding: "0.5rem" }}><code style={{ background: "rgba(0,0,0,0.3)", padding: "2px 4px", borderRadius: "4px" }}>{c.clientId}</code></td>
+                            <td style={{ padding: "0.5rem", fontSize: "0.85rem" }}>{c.redirectUris.join(", ")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                
+                <div style={{ marginTop: "20px", textAlign: "center" }}>
+                  <button onClick={() => router.push("/oauth/demo")} className="btn btn-secondary" style={{ width: "auto" }}>Go to OAuth PKCE Demo</button>
+                </div>
+              </div>
+
             </>
           )}
         </div>
