@@ -9,7 +9,8 @@ Modular monolith on **Next.js App Router**: UI + `/api` on Vercel. IAM rules liv
 | Slice | Status |
 | --- | --- |
 | 01 Identity | Scaffolded — run tests |
-| 01B Domain + Web | Spec ready |
+| 01B Domain + Web | Done |
+| 01C UI Pages | Spec ready |
 | 02 Invites | Spec ready |
 | 03 Grants + audit + deny reasons | Next |
 | 04 Product OAuth + API keys | Later |

@@ -19,19 +19,26 @@ export async function createOrg(db: Db, token: string | undefined, payload: unkn
   const ctx = await requireUser(db, token);
   const body = createOrgBody.parse(payload);
 
-  const slug = `${slugify(body.name)}-${ctx.user._id.toHexString().slice(-6)}`;
+  const slug = `${slugify(body.name)}-${ctx.user._id.toHexString().slice(-6)}-${Date.now().toString(36).slice(-4)}`;
   const now = new Date();
   const orgId = new ObjectId();
 
-  await orgs(db).insertOne({
-    _id: orgId,
-    name: body.name,
-    slug,
-    plan: "free",
-    seatLimit: 5,
-    createdAt: now,
-    updatedAt: now
-  });
+  try {
+    await orgs(db).insertOne({
+      _id: orgId,
+      name: body.name,
+      slug,
+      plan: "free",
+      seatLimit: 5,
+      createdAt: now,
+      updatedAt: now
+    });
+  } catch (err: any) {
+    if (err.code === 11000) {
+      throw errors.conflict("Organization with this name/slug already exists. Please try again.");
+    }
+    throw err;
+  }
 
   await memberships(db).insertOne({
     _id: new ObjectId(),
