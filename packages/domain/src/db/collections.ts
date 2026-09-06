@@ -51,6 +51,32 @@ export type SessionDoc = {
   revokedAt: Date | null;
 };
 
+export type GrantDoc = {
+  _id: ObjectId;
+  orgId: ObjectId;
+  principalType: "user";
+  principalId: ObjectId;
+  product: import("@keystone/shared").Product;
+  level: import("@keystone/shared").GrantLevel;
+  expiresAt: Date | null;
+  createdBy: ObjectId;
+  reason: string;
+  createdAt: Date;
+};
+
+export type AuditDoc = {
+  _id: ObjectId;
+  orgId: ObjectId;
+  actorUserId: ObjectId;
+  action: string;
+  product: import("@keystone/shared").Product | null;
+  target: { type: string; id: string };
+  outcome: "allow" | "deny";
+  reasonCode: string;
+  reason: string;
+  createdAt: Date;
+};
+
 export function users(db: Db) {
   return db.collection<UserDoc>("users");
 }
@@ -69,4 +95,12 @@ export function sessions(db: Db) {
 
 export function invites(db: Db) {
   return db.collection<InviteDoc>("invites");
+}
+
+export function grants(db: Db) {
+  return db.collection<GrantDoc>("grants");
+}
+
+export function audit(db: Db) {
+  return db.collection<AuditDoc>("audit");
 }
