@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +32,11 @@ export default function LoginPage() {
         throw new Error(data.message || "Login failed");
       }
 
-      router.push("/app");
+      if (returnTo) {
+        router.push(returnTo);
+      } else {
+        router.push("/app");
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -63,9 +69,17 @@ export default function LoginPage() {
         </form>
 
         <p style={{ marginTop: "2rem", textAlign: "center", fontSize: "0.875rem" }}>
-          Don't have an account? <Link href="/register">Create Account</Link>
+          Don't have an account? <Link href={`/register${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}>Create Account</Link>
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="center-layout"><div style={{ color: "var(--primary)" }}>Loading...</div></main>}>
+      <LoginContent />
+    </Suspense>
   );
 }

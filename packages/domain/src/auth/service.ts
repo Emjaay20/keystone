@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ObjectId } from "mongodb";
 import { PASSWORD_MIN_LENGTH } from "@keystone/shared";
 import type { Db } from "mongodb";
-import { users } from "../db/collections.js";
+import { memberships, orgs, users } from "../db/collections.js";
 import { errors } from "../http/errors.js";
 import { hashPassword, verifyPassword } from "../security/crypto.js";
 import { createSession, requireUser, toSessionPayload } from "./session.js";
@@ -52,8 +52,12 @@ export async function login(db: Db, payload: unknown) {
     throw errors.unauthorized("Invalid email or password");
   }
 
-  const token = await createSession(db, user._id, null);
-  return { token, payload: toSessionPayload(user, null, null) };
+  const membership = await memberships(db).findOne({ userId: user._id, status: "active" });
+  const orgId = membership ? membership.orgId : null;
+  const org = orgId ? await orgs(db).findOne({ _id: orgId }) : null;
+
+  const token = await createSession(db, user._id, orgId);
+  return { token, payload: toSessionPayload(user, org, membership?.role ?? null) };
 }
 
 export async function logout(db: Db, token: string | undefined) {

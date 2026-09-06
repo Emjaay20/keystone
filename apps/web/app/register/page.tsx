@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -31,7 +33,11 @@ export default function RegisterPage() {
         throw new Error(data.message || "Registration failed");
       }
 
-      router.push("/app");
+      if (returnTo) {
+        router.push(returnTo);
+      } else {
+        router.push("/app");
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -69,9 +75,17 @@ export default function RegisterPage() {
         </form>
 
         <p style={{ marginTop: "2rem", textAlign: "center", fontSize: "0.875rem" }}>
-          Already have an account? <Link href="/login">Sign In</Link>
+          Already have an account? <Link href={`/login${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`}>Sign In</Link>
         </p>
       </div>
     </main>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<main className="center-layout"><div style={{ color: "var(--primary)" }}>Loading...</div></main>}>
+      <RegisterContent />
+    </Suspense>
   );
 }

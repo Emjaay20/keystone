@@ -20,6 +20,18 @@ export type OrgDoc = {
   updatedAt: Date;
 };
 
+export type InviteDoc = {
+  _id: ObjectId;
+  orgId: ObjectId;
+  email: string;
+  role: OrgRole;
+  tokenHash: string;
+  expiresAt: Date;
+  invitedBy: ObjectId;
+  acceptedAt: Date | null;
+  createdAt: Date;
+};
+
 export type MembershipDoc = {
   _id: ObjectId;
   orgId: ObjectId;
@@ -53,4 +65,8 @@ export function memberships(db: Db) {
 
 export function sessions(db: Db) {
   return db.collection<SessionDoc>("sessions");
+}
+
+export function invites(db: Db) {
+  return db.collection<InviteDoc>("invites");
 }

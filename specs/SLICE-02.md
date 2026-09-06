@@ -9,18 +9,20 @@ An owner or admin can invite someone by email into the current org. Invitee acce
 ## In scope
 
 - Collection `invites`: orgId, email, role, tokenHash, expiresAt, invitedBy, acceptedAt
-- `POST /orgs/:orgId/invites` `{ email, role }` — owner/admin only; cannot invite `owner`
-- `GET /orgs/:orgId/invites` — owner/admin
-- `POST /invites/accept` `{ token }` — auth required; email must match session user
+- `packages/domain` methods for `createInvite`, `listInvites`, and `acceptInvite`.
+- `POST /api/orgs/:orgId/invites` `{ email, role }` — owner/admin only; cannot invite `owner`
+- `GET /api/orgs/:orgId/invites` — owner/admin
+- `POST /api/invites/accept` `{ token }` — auth required; email must match session user
 - Token shown once at create (like an API key). Stored hashed. TTL 7 days.
 - Duplicate active invite for same email+org → 409
 - Existing active member → 409
-- Audit row optional if audit collection exists; otherwise skip until Slice 3
+- Next.js UI: A small invite form in `/app/page.tsx` for owners/admins.
+- Next.js UI: An `/accept` page (e.g. `/accept?token=...`) to claim the invite.
 
 ## Out of scope
 
-Email sending (return token in JSON; README says “in production this goes out by email”).
-Product grants. Okta/SCIM. React UI.
+Email sending (return token in JSON; UI shows it once).
+Product grants. Okta/SCIM. Fastify work unless needed to compile.
 
 ## Tests
 
