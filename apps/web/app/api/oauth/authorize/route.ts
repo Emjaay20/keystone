@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getDb } from "@/lib/db";
+import { getSessionToken } from "@/lib/http";
 import { startAuthorize } from "@keystone/domain";
 
 export async function GET(request: Request) {
@@ -16,8 +17,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "invalid_request" }, { status: 400 });
   }
 
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get("session")?.value;
+  const sessionToken = await getSessionToken();
 
   if (!sessionToken) {
     // Redirect to login, preserving all parameters in returnTo
