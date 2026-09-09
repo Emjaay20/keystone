@@ -36,7 +36,7 @@ describe("OAuth & API Keys", () => {
     ]);
 
     await orgs(db).insertOne({
-      _id: orgId, name: "Test Org", slug: "test-org", plan: "free", seatLimit: 5, createdAt: new Date(), updatedAt: new Date()
+      _id: orgId, name: "Test Org", slug: "test-org", plan: "team", seatLimit: 25, createdAt: new Date(), updatedAt: new Date()
     });
 
     await memberships(db).insertMany([

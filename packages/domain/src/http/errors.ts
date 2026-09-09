@@ -5,6 +5,7 @@ export class HttpError extends Error {
     public code: string
   ) {
     super(message);
+    this.name = "HttpError";
   }
 }
 
@@ -14,5 +15,6 @@ export const errors = {
   forbidden: (message = "Not allowed") => new HttpError(403, message, "forbidden"),
   notFound: (message = "Not found") => new HttpError(404, message, "not_found"),
   conflict: (message = "Conflict") => new HttpError(409, message, "conflict"),
-  badRequest: (message = "Bad request") => new HttpError(400, message, "bad_request")
+  badRequest: (message = "Bad request") => new HttpError(400, message, "bad_request"),
+  planFeatureLocked: (message: string) => new HttpError(403, message, "plan_feature_locked"),
 };

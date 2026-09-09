@@ -1,8 +1,9 @@
 import { ObjectId, type Db } from "mongodb";
-import { oauthClients, oauthCodes, oauthTokens } from "../db/collections.js";
+import { oauthClients, oauthCodes, oauthTokens, orgs } from "../db/collections.js";
 import { requireUser } from "../auth/session.js";
 import { errors } from "../http/errors.js";
 import { randomToken, sha256 } from "../security/crypto.js";
+import { assertFeature } from "../plans/service.js";
 
 type CreateOauthClientInput = {
   rawToken: string | undefined;
@@ -22,6 +23,11 @@ export async function createOauthClient(db: Db, input: CreateOauthClientInput) {
   if (role !== "owner" && role !== "admin") {
     throw errors.forbidden("Only owners and admins can create OAuth clients");
   }
+
+  // Plan check
+  const orgDoc = await orgs(db).findOne({ _id: new ObjectId(input.orgId) });
+  if (!orgDoc) throw errors.notFound("Organization not found");
+  assertFeature(orgDoc, "oauth_clients");
 
   const clientId = randomToken(16);
   const rawSecret = randomToken(32);

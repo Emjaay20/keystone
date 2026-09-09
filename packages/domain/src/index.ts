@@ -11,3 +11,4 @@ export * from "./http/errors.js";
 export * from "./http/public.js";
 export * from "./api-keys/service.js";
 export * from "./oauth/service.js";
+export * from "./plans/service.js";

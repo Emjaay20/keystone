@@ -40,6 +40,21 @@ export default function AppPage() {
   const [oauthError, setOauthError] = useState("");
   const [isCreatingClient, setIsCreatingClient] = useState(false);
 
+  type Entitlements = {
+    plan: string;
+    seatLimit: number;
+    seatUsed: number;
+    features: {
+      api_keys: boolean;
+      oauth_clients: boolean;
+      sso: boolean;
+      ai_operator: boolean;
+      access_reviews: boolean;
+    };
+  };
+  const [entitlements, setEntitlements] = useState<Entitlements | null>(null);
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
+
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
       .then((res) => {
@@ -68,6 +83,7 @@ export default function AppPage() {
   useEffect(() => {
     if (user?.orgId) {
       loadGrants();
+      loadEntitlements();
       if (user.role === "owner" || user.role === "admin") {
         loadAuditLogs();
         loadApiKeys();
@@ -80,6 +96,15 @@ export default function AppPage() {
     try {
       const res = await fetch(`/api/orgs/${user?.orgId}/grants`);
       if (res.ok) setGrants(await res.json());
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadEntitlements = async () => {
+    try {
+      const res = await fetch(`/api/orgs/${user?.orgId}/entitlements`);
+      if (res.ok) setEntitlements(await res.json());
     } catch (err) {
       console.error(err);
     }
@@ -243,6 +268,27 @@ export default function AppPage() {
     }
   };
 
+  const handleChangePlan = async (plan: string) => {
+    setIsChangingPlan(true);
+    try {
+      const res = await fetch(`/api/orgs/${user?.orgId}/plan`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to change plan");
+      }
+      await loadEntitlements();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsChangingPlan(false);
+    }
+  };
+
   const handleCreateApiKey = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setApiKeyError("");
@@ -262,9 +308,9 @@ export default function AppPage() {
         credentials: "include",
       });
 
-      if (!res.ok) throw new Error("Failed to create API key");
-      
       const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || "Failed to create API key");
+      
       setNewApiKeyRaw(data.rawKey);
       (e.target as HTMLFormElement).reset();
       loadApiKeys();
@@ -379,6 +425,70 @@ export default function AppPage() {
               </div>
             </div>
           </div>
+
+          {/* Plan & Entitlements Card */}
+          {entitlements && (
+            <div className="card">
+              <h2>Plan &amp; Entitlements</h2>
+              <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "1rem", borderBottom: "1px solid var(--card-border)" }}>
+                  <span style={{ color: "rgba(255,255,255,0.6)" }}>Current Plan</span>
+                  <strong style={{ textTransform: "capitalize", color: "var(--primary)", fontSize: "1.1rem" }}>{entitlements.plan}</strong>
+                </div>
+                <div style={{ paddingBottom: "1rem", borderBottom: "1px solid var(--card-border)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                    <span style={{ color: "rgba(255,255,255,0.6)" }}>Seats Used</span>
+                    <span><strong>{entitlements.seatUsed}</strong> / {entitlements.seatLimit}</span>
+                  </div>
+                  <div style={{ height: "6px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${Math.min(100, (entitlements.seatUsed / entitlements.seatLimit) * 100)}%`, backgroundColor: entitlements.seatUsed >= entitlements.seatLimit ? "#ef4444" : "var(--primary)", borderRadius: "3px", transition: "width 0.3s" }} />
+                  </div>
+                </div>
+                <div style={{ paddingBottom: "1rem", borderBottom: "1px solid var(--card-border)" }}>
+                  <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: "0.75rem", fontSize: "0.9rem" }}>Features</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                    {(["api_keys", "oauth_clients", "sso", "ai_operator", "access_reviews"] as const).map((f) => (
+                      <div key={f} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
+                        <span style={{ color: entitlements.features[f] ? "rgb(74,222,128)" : "rgb(248,113,113)", fontWeight: 700 }}>
+                          {entitlements.features[f] ? "✓" : "✗"}
+                        </span>
+                        <span style={{ color: entitlements.features[f] ? "white" : "rgba(255,255,255,0.4)" }}>
+                          {f.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {user.role === "owner" && (
+                  <div>
+                    <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: "0.75rem", fontSize: "0.9rem" }}>Change Plan</p>
+                    <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                      {(["free", "team", "enterprise"] as const).map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => handleChangePlan(p)}
+                          disabled={isChangingPlan || entitlements.plan === p}
+                          style={{
+                            padding: "0.5rem 1.25rem",
+                            borderRadius: "8px",
+                            border: entitlements.plan === p ? "2px solid var(--primary)" : "1px solid rgba(255,255,255,0.2)",
+                            background: entitlements.plan === p ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.05)",
+                            color: entitlements.plan === p ? "var(--primary)" : "white",
+                            cursor: entitlements.plan === p ? "default" : "pointer",
+                            textTransform: "capitalize",
+                            fontWeight: entitlements.plan === p ? 700 : 400,
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {isChangingPlan && entitlements.plan !== p ? "..." : p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="card">
             <h2>MailGuard Export Test</h2>
@@ -559,7 +669,21 @@ export default function AppPage() {
                   </div>
                 )}
 
-                <form onSubmit={handleCreateApiKey} style={{ marginBottom: "2rem" }}>
+                {entitlements && !entitlements.features.api_keys ? (
+                  <div style={{ padding: "1.25rem", backgroundColor: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.4)", borderRadius: "8px", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+                    <div>
+                      <p style={{ color: "rgb(234,179,8)", fontWeight: 600, marginBottom: "0.25rem" }}>API Keys require Team or higher</p>
+                      <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>Your org is on the <strong>{entitlements.plan}</strong> plan. Upgrade to unlock API keys.</p>
+                    </div>
+                    {user.role === "owner" && (
+                      <button onClick={() => handleChangePlan("team")} disabled={isChangingPlan} className="btn" style={{ width: "auto", padding: "0.5rem 1.25rem", whiteSpace: "nowrap" }}>
+                        {isChangingPlan ? "..." : "Upgrade to Team"}
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+
+                <form onSubmit={handleCreateApiKey} style={{ marginBottom: "2rem", opacity: entitlements && !entitlements.features.api_keys ? 0.4 : 1, pointerEvents: entitlements && !entitlements.features.api_keys ? "none" : "auto" }}>
                   <div className="form-group">
                     <label htmlFor="keyName">Name</label>
                     <input id="keyName" name="name" type="text" required placeholder="Production Sync" />
@@ -629,7 +753,21 @@ export default function AppPage() {
 
                 {oauthError && <div className="error-msg">{oauthError}</div>}
 
-                <form onSubmit={handleCreateOauthClient} style={{ marginBottom: "2rem" }}>
+                {entitlements && !entitlements.features.oauth_clients ? (
+                  <div style={{ padding: "1.25rem", backgroundColor: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.4)", borderRadius: "8px", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+                    <div>
+                      <p style={{ color: "rgb(234,179,8)", fontWeight: 600, marginBottom: "0.25rem" }}>OAuth Clients require Team or higher</p>
+                      <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>Your org is on the <strong>{entitlements.plan}</strong> plan. Upgrade to unlock OAuth clients.</p>
+                    </div>
+                    {user.role === "owner" && (
+                      <button onClick={() => handleChangePlan("team")} disabled={isChangingPlan} className="btn" style={{ width: "auto", padding: "0.5rem 1.25rem", whiteSpace: "nowrap" }}>
+                        {isChangingPlan ? "..." : "Upgrade to Team"}
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+
+                <form onSubmit={handleCreateOauthClient} style={{ marginBottom: "2rem", opacity: entitlements && !entitlements.features.oauth_clients ? 0.4 : 1, pointerEvents: entitlements && !entitlements.features.oauth_clients ? "none" : "auto" }}>
                   <div className="form-group">
                     <label htmlFor="clientName">App Name</label>
                     <input id="clientName" name="name" type="text" required placeholder="MailGuard Dev" />

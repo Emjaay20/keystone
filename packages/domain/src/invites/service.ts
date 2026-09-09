@@ -5,6 +5,7 @@ import { invites, memberships, orgs } from "../db/collections.js";
 import { errors } from "../http/errors.js";
 import { randomToken, sha256 } from "../security/crypto.js";
 import { requireUser } from "../auth/session.js";
+import { getEntitlements } from "../plans/service.js";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -32,6 +33,18 @@ export async function createInvite(db: Db, token: string | undefined, orgIdStrin
   const body = createInviteBody.parse(payload);
   const orgId = new ObjectId(orgIdString);
   const email = body.email.toLowerCase();
+
+  // Seat limit check
+  const org = await orgs(db).findOne({ _id: orgId });
+  if (org) {
+    const ents = getEntitlements(org.plan);
+    const seatUsed = await memberships(db).countDocuments({ orgId, status: "active" });
+    if (seatUsed >= ents.seatLimit) {
+      throw errors.planFeatureLocked(
+        `Seat limit reached (${ents.seatLimit} seats on ${org.plan} plan). Upgrade to add more members.`
+      );
+    }
+  }
 
   // Check if they are already an active member
   const existingUser = await db.collection("users").findOne({ email });
@@ -140,6 +153,20 @@ export async function acceptInvite(db: Db, sessionToken: string | undefined, pay
     orgId: invite.orgId,
     userId: ctx.user._id
   });
+
+  // Seat limit check — only if this is a truly new member (no existing membership)
+  if (!existingMembership) {
+    const org = await orgs(db).findOne({ _id: invite.orgId });
+    if (org) {
+      const ents = getEntitlements(org.plan);
+      const seatUsed = await memberships(db).countDocuments({ orgId: invite.orgId, status: "active" });
+      if (seatUsed >= ents.seatLimit) {
+        throw errors.planFeatureLocked(
+          `Seat limit reached (${ents.seatLimit} seats on ${org.plan} plan). Upgrade to add more members.`
+        );
+      }
+    }
+  }
 
   if (existingMembership) {
     await memberships(db).updateOne(

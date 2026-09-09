@@ -1,9 +1,10 @@
 import { ObjectId, type Db } from "mongodb";
 import type { Product, GrantLevel } from "@keystone/shared";
-import { apiKeys, audit } from "../db/collections.js";
+import { apiKeys, audit, orgs } from "../db/collections.js";
 import { requireUser } from "../auth/session.js";
 import { errors } from "../http/errors.js";
 import { randomToken, sha256 } from "../security/crypto.js";
+import { assertFeature } from "../plans/service.js";
 
 type CreateApiKeyInput = {
   rawToken: string | undefined;
@@ -24,6 +25,11 @@ export async function createApiKey(db: Db, input: CreateApiKeyInput) {
   if (role !== "owner" && role !== "admin") {
     throw errors.forbidden("Only owners and admins can create API keys");
   }
+
+  // Plan check
+  const org = await orgs(db).findOne({ _id: new ObjectId(input.orgId) });
+  if (!org) throw errors.notFound("Organization not found");
+  assertFeature(org, "api_keys");
 
   const rawSecret = randomToken(32);
   const rawKey = `ks_${rawSecret}`;

@@ -13,6 +13,7 @@ export function publicOrg(org: OrgDoc) {
     id: org._id.toHexString(),
     name: org.name,
     slug: org.slug,
-    plan: org.plan
+    plan: org.plan,
+    seatLimit: org.seatLimit
   };
 }
