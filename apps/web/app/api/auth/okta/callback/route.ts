@@ -82,7 +82,6 @@ export async function GET(request: Request) {
     const jwksUri = new URL(`${config.issuer}/oauth2/v1/keys`);
     const JWKS = createRemoteJWKSet(jwksUri);
 
-    const cookieStore = await cookies();
     const storedNonce = cookieStore.get("ks_sso_nonce")?.value ?? "";
 
     const { payload: claims } = await jwtVerify(idToken, JWKS, {
