@@ -55,6 +55,18 @@ export default function AppPage() {
   const [entitlements, setEntitlements] = useState<Entitlements | null>(null);
   const [isChangingPlan, setIsChangingPlan] = useState(false);
 
+  type SsoConfig = {
+    issuer?: string;
+    clientId?: string;
+    enabled?: boolean;
+    hasSecret?: boolean;
+    configured?: boolean;
+  };
+  const [ssoConfig, setSsoConfig] = useState<SsoConfig | null>(null);
+  const [isSavingSso, setIsSavingSso] = useState(false);
+  const [ssoError, setSsoError] = useState("");
+  const [ssoSuccess, setSsoSuccess] = useState("");
+
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
       .then((res) => {
@@ -88,6 +100,7 @@ export default function AppPage() {
         loadAuditLogs();
         loadApiKeys();
         loadOauthClients();
+        loadSsoConfig();
       }
     }
   }, [user?.orgId, user?.role]);
@@ -105,6 +118,15 @@ export default function AppPage() {
     try {
       const res = await fetch(`/api/orgs/${user?.orgId}/entitlements`);
       if (res.ok) setEntitlements(await res.json());
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadSsoConfig = async () => {
+    try {
+      const res = await fetch(`/api/orgs/${user?.orgId}/sso`);
+      if (res.ok) setSsoConfig(await res.json());
     } catch (err) {
       console.error(err);
     }
@@ -286,6 +308,38 @@ export default function AppPage() {
       setError(err.message);
     } finally {
       setIsChangingPlan(false);
+    }
+  };
+
+  const handleSaveSso = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSsoError("");
+    setSsoSuccess("");
+    setIsSavingSso(true);
+    const fd = new FormData(e.currentTarget);
+    try {
+      const body: Record<string, unknown> = {
+        issuer: fd.get("issuer"),
+        clientId: fd.get("clientId"),
+        enabled: fd.get("enabled") === "on",
+      };
+      const secret = fd.get("clientSecret") as string;
+      if (secret) body.clientSecret = secret;
+
+      const res = await fetch(`/api/orgs/${user?.orgId}/sso`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to save SSO config");
+      setSsoSuccess("SSO configuration saved.");
+      setSsoConfig(data);
+    } catch (err: any) {
+      setSsoError(err.message);
+    } finally {
+      setIsSavingSso(false);
     }
   };
 
@@ -485,6 +539,75 @@ export default function AppPage() {
                       ))}
                     </div>
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* SSO Configuration Card — enterprise only */}
+          {entitlements?.features.sso && (user?.role === "owner" || user?.role === "admin") && (
+            <div className="card">
+              <h2>SSO Configuration</h2>
+              <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.5rem" }}>
+                Federate login through your identity provider (Okta). Enterprise plan only.
+              </p>
+
+              {ssoError && <div className="error-msg">{ssoError}</div>}
+              {ssoSuccess && (
+                <div style={{ padding: "0.75rem 1rem", backgroundColor: "rgba(34,197,94,0.1)", border: "1px solid rgb(34,197,94)", borderRadius: "6px", color: "rgb(74,222,128)", marginBottom: "1rem" }}>
+                  {ssoSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveSso}>
+                <div className="form-group">
+                  <label htmlFor="ssoIssuer">Issuer URL</label>
+                  <input id="ssoIssuer" name="issuer" type="url" required placeholder="https://dev-xxxxx.okta.com" defaultValue={ssoConfig?.issuer ?? ""} />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="ssoClientId">Client ID</label>
+                  <input id="ssoClientId" name="clientId" type="text" required placeholder="0oaxxxxxx" defaultValue={ssoConfig?.clientId ?? ""} />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="ssoClientSecret">Client Secret {ssoConfig?.hasSecret ? "(leave blank to keep existing)" : ""}</label>
+                  <input id="ssoClientSecret" name="clientSecret" type="password" placeholder={ssoConfig?.hasSecret ? "••••••••" : "Paste client secret"} />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
+                  <input id="ssoEnabled" name="enabled" type="checkbox" defaultChecked={ssoConfig?.enabled !== false} style={{ width: "auto" }} />
+                  <label htmlFor="ssoEnabled" style={{ margin: 0, fontWeight: 400 }}>Enabled</label>
+                </div>
+                <button type="submit" className="btn" disabled={isSavingSso} style={{ width: "auto" }}>
+                  {isSavingSso ? "Saving..." : "Save SSO Config"}
+                </button>
+              </form>
+
+              {ssoConfig?.enabled && ssoConfig?.issuer && (
+                <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid var(--card-border)" }}>
+                  <p style={{ marginBottom: "0.75rem", color: "rgba(255,255,255,0.6)", fontSize: "0.9rem" }}>Test the SSO login flow:</p>
+                  <a
+                    href={`/api/auth/okta/authorize?org_id=${user?.orgId}`}
+                    className="btn"
+                    style={{ display: "inline-block", width: "auto", textDecoration: "none" }}
+                  >
+                    Continue with Okta →
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!entitlements?.features.sso && (user?.role === "owner" || user?.role === "admin") && (
+            <div className="card" style={{ borderColor: "rgba(139,92,246,0.3)" }}>
+              <h2>SSO Configuration</h2>
+              <div style={{ padding: "1.25rem", backgroundColor: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.4)", borderRadius: "8px", marginTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+                <div>
+                  <p style={{ color: "rgb(167,139,250)", fontWeight: 600, marginBottom: "0.25rem" }}>SSO requires Enterprise plan</p>
+                  <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>Upgrade to Enterprise to configure Okta SSO federation.</p>
+                </div>
+                {user.role === "owner" && (
+                  <button onClick={() => handleChangePlan("enterprise")} disabled={isChangingPlan} className="btn" style={{ width: "auto", padding: "0.5rem 1.25rem", whiteSpace: "nowrap" }}>
+                    {isChangingPlan ? "..." : "Upgrade to Enterprise"}
+                  </button>
                 )}
               </div>
             </div>

@@ -169,3 +169,19 @@ export function oauthTokens(db: Db) {
 export function apiKeys(db: Db) {
   return db.collection<ApiKeyDoc>("api_keys");
 }
+
+export type SsoConnectionDoc = {
+  _id: ObjectId;
+  orgId: ObjectId;
+  issuer: string;
+  clientId: string;
+  clientSecretEnc: string; // base64-encoded — simple encryption for storage
+  enabled: boolean;
+  createdBy: ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export function ssoConnections(db: Db) {
+  return db.collection<SsoConnectionDoc>("sso_connections");
+}
