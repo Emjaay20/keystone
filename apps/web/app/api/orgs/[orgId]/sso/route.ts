@@ -30,7 +30,7 @@ export async function PUT(
     const result = await configureSso(db, {
       rawToken: token,
       orgId,
-      issuer: body.issuer,
+      issuer: typeof body.issuer === "string" ? body.issuer.trim().replace(/\/$/, "") : body.issuer,
       clientId: body.clientId,
       clientSecret: body.clientSecret,
       enabled: body.enabled,

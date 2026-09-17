@@ -56,7 +56,7 @@ export async function createOrg(db: Db, token: string | undefined, payload: unkn
   );
 
   const org = await orgs(db).findOne({ _id: orgId });
-  return toSessionPayload(ctx.user, org, "owner");
+  return await toSessionPayload(db, ctx.user, org, "owner");
 }
 
 export async function listOrgs(db: Db, token: string | undefined) {
@@ -69,14 +69,23 @@ export async function listOrgs(db: Db, token: string | undefined) {
     .find({ _id: { $in: orgIds } })
     .toArray();
 
+  const { getEntitlements } = await import("../plans/service.js");
+
+  const orgsResult = await Promise.all(list.map(async (org) => {
+    const membership = mine.find((m) => m.orgId.equals(org._id));
+    const ents = getEntitlements(org.plan);
+    const seatUsed = await memberships(db).countDocuments({ orgId: org._id, status: "active" });
+
+    return {
+      ...publicOrg(org),
+      entitlements: ents.features,
+      seatUsed,
+      role: membership?.role ?? "readonly"
+    };
+  }));
+
   return {
-    orgs: list.map((org) => {
-      const membership = mine.find((m) => m.orgId.equals(org._id));
-      return {
-        ...publicOrg(org),
-        role: membership?.role ?? "readonly"
-      };
-    })
+    orgs: orgsResult
   };
 }
 
@@ -102,5 +111,5 @@ export async function switchOrg(db: Db, token: string | undefined, params: unkno
   );
   const newToken = await createSession(db, ctx.user._id, orgId);
   
-  return { token: newToken, payload: toSessionPayload(ctx.user, org, membership.role) };
+  return { token: newToken, payload: await toSessionPayload(db, ctx.user, org, membership.role) };
 }

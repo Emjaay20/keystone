@@ -38,7 +38,7 @@ export async function register(db: Db, payload: unknown) {
 
   const token = await createSession(db, userId, null);
   const user = await users(db).findOne({ _id: userId });
-  return { token, payload: toSessionPayload(user!, null, null) };
+  return { token, payload: await toSessionPayload(db, user!, null, null) };
 }
 
 export async function login(db: Db, payload: unknown) {
@@ -57,7 +57,7 @@ export async function login(db: Db, payload: unknown) {
   const org = orgId ? await orgs(db).findOne({ _id: orgId }) : null;
 
   const token = await createSession(db, user._id, orgId);
-  return { token, payload: toSessionPayload(user, org, membership?.role ?? null) };
+  return { token, payload: await toSessionPayload(db, user, org, membership?.role ?? null) };
 }
 
 export async function logout(db: Db, token: string | undefined) {
@@ -73,5 +73,5 @@ export async function logout(db: Db, token: string | undefined) {
 
 export async function me(db: Db, token: string | undefined) {
   const ctx = await requireUser(db, token);
-  return toSessionPayload(ctx.user, ctx.org, ctx.membership?.role ?? null);
+  return await toSessionPayload(db, ctx.user, ctx.org, ctx.membership?.role ?? null);
 }

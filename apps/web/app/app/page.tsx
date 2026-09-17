@@ -562,7 +562,10 @@ export default function AppPage() {
               <form onSubmit={handleSaveSso}>
                 <div className="form-group">
                   <label htmlFor="ssoIssuer">Issuer URL</label>
-                  <input id="ssoIssuer" name="issuer" type="url" required placeholder="https://dev-xxxxx.okta.com" defaultValue={ssoConfig?.issuer ?? ""} />
+                  <input id="ssoIssuer" name="issuer" type="url" required placeholder="https://dev-xxxxx.okta.com/oauth2/default" defaultValue={ssoConfig?.issuer ?? ""} />
+                  <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", marginTop: "0.35rem" }}>
+                    Integrator Free Plan: use <code>https://your-org.okta.com/oauth2/default</code>
+                  </p>
                 </div>
                 <div className="form-group">
                   <label htmlFor="ssoClientId">Client ID</label>
@@ -583,7 +586,9 @@ export default function AppPage() {
 
               {ssoConfig?.enabled && ssoConfig?.issuer && (
                 <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid var(--card-border)" }}>
-                  <p style={{ marginBottom: "0.75rem", color: "rgba(255,255,255,0.6)", fontSize: "0.9rem" }}>Test the SSO login flow:</p>
+                  <p style={{ marginBottom: "0.75rem", color: "rgba(255,255,255,0.6)", fontSize: "0.9rem" }}>
+                    In Okta, add both Sign-in redirect URIs: <code>http://localhost:3000/api/auth/okta/callback</code> and <code>https://keystone-web-9yug.vercel.app/api/auth/okta/callback</code>. Then test:
+                  </p>
                   <a
                     href={`/api/auth/okta/authorize?org_id=${user?.orgId}`}
                     className="btn"

@@ -118,14 +118,28 @@ export async function authenticateBearer(db: Db, header: string | undefined) {
   }
 }
 
-export function toSessionPayload(
+export async function toSessionPayload(
+  db: Db,
   user: Parameters<typeof publicUser>[0],
   org: Parameters<typeof publicOrg>[0] | null,
   role: string | null
 ) {
+  let entitlements = null;
+  let seatUsed = 0;
+
+  if (org) {
+    const { getEntitlements } = await import("../plans/service.js");
+    entitlements = getEntitlements(org.plan);
+    seatUsed = await memberships(db).countDocuments({ orgId: org._id, status: "active" });
+  }
+
   return {
     user: publicUser(user),
-    org: org ? publicOrg(org) : null,
+    org: org ? {
+      ...publicOrg(org),
+      entitlements: entitlements ? entitlements.features : undefined,
+      seatUsed
+    } : null,
     role
   };
 }
