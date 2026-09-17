@@ -26,6 +26,55 @@ export default function AppPage() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [oauthClients, setOauthClients] = useState<any[]>([]);
+  
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiCommand, setAiCommand] = useState<any>(null);
+  const [isProposing, setIsProposing] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  async function handleAiPropose() {
+    setIsProposing(true);
+    setAiError("");
+    setAiCommand(null);
+    try {
+      const res = await fetch(`/api/orgs/${user?.orgId}/ai/propose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: aiPrompt }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to propose");
+      setAiCommand(data);
+    } catch (err: any) {
+      setAiError(err.message);
+    } finally {
+      setIsProposing(false);
+    }
+  }
+
+  async function handleAiApply() {
+    setIsApplying(true);
+    setAiError("");
+    try {
+      const res = await fetch(`/api/orgs/${user?.orgId}/ai/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: aiCommand }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to apply");
+      setAiCommand(null);
+      setAiPrompt("");
+      loadGrants();
+      loadAuditLogs();
+    } catch (err: any) {
+      setAiError(err.message);
+    } finally {
+      setIsApplying(false);
+    }
+  }
+
   const [isSettingGrant, setIsSettingGrant] = useState(false);
   const [grantError, setGrantError] = useState("");
   const [grantSuccess, setGrantSuccess] = useState("");
@@ -741,6 +790,57 @@ export default function AppPage() {
                     {isInviting ? "Inviting..." : "Send Invite"}
                   </button>
                 </form>
+              </div>
+
+              <div className="card">
+                <h2>AI Operator</h2>
+                {entitlements?.features.ai_operator ? (
+                  <>
+                    <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.5rem" }}>
+                      Use English to propose access changes.
+                    </p>
+                    {aiError && <p className="error">{aiError}</p>}
+                    
+                    {!aiCommand ? (
+                      <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+                        <div className="form-group" style={{ flex: 1, minWidth: "300px", margin: 0 }}>
+                          <label>Prompt</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Grant my user operate on MailGuard"
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                            className="input"
+                          />
+                        </div>
+                        <button onClick={handleAiPropose} disabled={!aiPrompt || isProposing} className="btn" style={{ width: "auto" }}>
+                          {isProposing ? "Proposing..." : "Propose"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ background: "rgba(0,0,0,0.3)", padding: "1rem", borderRadius: "8px", marginBottom: "1rem", fontFamily: "monospace", whiteSpace: "pre-wrap", overflowX: "auto", fontSize: "0.85rem" }}>
+                          {JSON.stringify(aiCommand, null, 2)}
+                        </div>
+                        <div style={{ display: "flex", gap: "0.75rem" }}>
+                          <button onClick={handleAiApply} disabled={isApplying || aiCommand.action === "reject"} className="btn" style={{ width: "auto" }}>
+                            {isApplying ? "Applying..." : "Apply"}
+                          </button>
+                          <button onClick={() => setAiCommand(null)} disabled={isApplying} className="btn" style={{ width: "auto", background: "transparent", border: "1px solid rgba(255,255,255,0.2)" }}>
+                            Discard
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ padding: "1.25rem", backgroundColor: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.4)", borderRadius: "8px", marginTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+                    <div>
+                      <p style={{ color: "rgb(167,139,250)", fontWeight: 600, marginBottom: "0.25rem" }}>AI operator is an Enterprise feature</p>
+                      <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>Upgrade to Enterprise to use natural language access control.</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="card">

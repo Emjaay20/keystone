@@ -13,3 +13,5 @@ export * from "./api-keys/service.js";
 export * from "./oauth/service.js";
 export * from "./plans/service.js";
 export * from "./sso/service.js";
+export * from "./ai/service.js";
+export * from "./ai/schema.js";
