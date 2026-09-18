@@ -1,0 +1,21 @@
+version: 2.1
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/node:20.11.0
+    steps:
+      - checkout
+      - run:
+          name: Install Dependencies
+          command: npm install
+      - run:
+          name: Run Domain Tests
+          command: npm run test:domain
+      - run:
+          name: Build Web App
+          command: npm run build -w web
+
+workflows:
+  main-workflow:
+    jobs:
+      - build-and-test
