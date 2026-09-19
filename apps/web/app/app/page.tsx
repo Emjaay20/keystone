@@ -165,12 +165,12 @@ export default function OrgPage() {
                 <div key={log._id} className="row" style={{ padding: "0.75rem 0", alignItems: "flex-start" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                      <span style={{ color: "white", fontSize: "0.9rem", fontWeight: 500 }}>{log.actor.name || log.actor.id}</span>
+                      <span style={{ color: "white", fontSize: "0.9rem", fontWeight: 500 }}>{log.actor?.name || log.actor?.id || 'System'}</span>
                       <span className="muted" style={{ fontSize: "0.85rem" }}>did</span>
                       <span className="badge" style={{ fontSize: "0.75rem" }}>{log.action}</span>
                     </div>
                     <div className="muted" style={{ fontSize: "0.85rem" }}>
-                      Target: {log.target.id} {log.target.product ? `(${log.target.product})` : ""}
+                      Target: {log.target?.id || 'None'} {log.target?.product ? `(${log.target.product})` : ""}
                     </div>
                   </div>
                   <span className="muted" style={{ fontSize: "0.75rem" }}>

@@ -12,6 +12,7 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [ssoLoading, setSsoLoading] = useState(false);
   const [slug, setSlug] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -49,6 +50,7 @@ function LoginContent() {
   return (
     <main className="center-layout">
       <div className="card">
+        <Link href="/" className="back-link">← Home</Link>
         <h1>Welcome Back</h1>
         <p className="subtitle">Sign in to access your dashboard.</p>
 
@@ -62,7 +64,24 @@ function LoginContent() {
           
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input id="password" name="password" type="password" required placeholder="••••••••" />
+            <div className="password-field">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           <button type="submit" className="btn" disabled={loading} style={{ marginTop: "1rem" }}>
