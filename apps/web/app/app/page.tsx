@@ -1,221 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { CopyButton } from "../components/copy-button";
+import { useAppSession } from "./session-context";
 
-type User = {
-  id: string;
-  email: string;
-  name: string;
-  orgId: string | null;
-  role: string | null;
+const FEATURE_LABELS: Record<string, string> = {
+  api_keys: "API keys",
+  oauth_clients: "OAuth clients",
+  sso: "SSO",
+  ai_operator: "AI operator",
+  access_reviews: "Access reviews",
 };
 
-export default function AppPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function OrgPage() {
+  const { user, org, refresh } = useAppSession();
   const [error, setError] = useState("");
-  const [creatingOrg, setCreatingOrg] = useState(false);
-  
-  const [isInviting, setIsInviting] = useState(false);
-  const [inviteToken, setInviteToken] = useState("");
-  const [inviteError, setInviteError] = useState("");
+  const [creating, setCreating] = useState(false);
 
-  const [grants, setGrants] = useState<any[]>([]);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
-  const [oauthClients, setOauthClients] = useState<any[]>([]);
-  
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiCommand, setAiCommand] = useState<any>(null);
-  const [isProposing, setIsProposing] = useState(false);
-  const [isApplying, setIsApplying] = useState(false);
-  const [aiError, setAiError] = useState("");
-
-  async function handleAiPropose() {
-    setIsProposing(true);
-    setAiError("");
-    setAiCommand(null);
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/ai/propose`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to propose");
-      setAiCommand(data);
-    } catch (err: any) {
-      setAiError(err.message);
-    } finally {
-      setIsProposing(false);
-    }
-  }
-
-  async function handleAiApply() {
-    setIsApplying(true);
-    setAiError("");
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/ai/apply`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: aiCommand }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to apply");
-      setAiCommand(null);
-      setAiPrompt("");
-      loadGrants();
-      loadAuditLogs();
-    } catch (err: any) {
-      setAiError(err.message);
-    } finally {
-      setIsApplying(false);
-    }
-  }
-
-  const [isSettingGrant, setIsSettingGrant] = useState(false);
-  const [grantError, setGrantError] = useState("");
-  const [grantSuccess, setGrantSuccess] = useState("");
-
-  const [exportResult, setExportResult] = useState<any>(null);
-  const [exportError, setExportError] = useState("");
-
-  const [newApiKeyRaw, setNewApiKeyRaw] = useState("");
-  const [apiKeyError, setApiKeyError] = useState("");
-  const [isCreatingKey, setIsCreatingKey] = useState(false);
-
-  const [oauthError, setOauthError] = useState("");
-  const [isCreatingClient, setIsCreatingClient] = useState(false);
-
-  type Entitlements = {
-    plan: string;
-    seatLimit: number;
-    seatUsed: number;
-    features: {
-      api_keys: boolean;
-      oauth_clients: boolean;
-      sso: boolean;
-      ai_operator: boolean;
-      access_reviews: boolean;
-    };
-  };
-  const [entitlements, setEntitlements] = useState<Entitlements | null>(null);
-  const [isChangingPlan, setIsChangingPlan] = useState(false);
-
-  type SsoConfig = {
-    issuer?: string;
-    clientId?: string;
-    enabled?: boolean;
-    hasSecret?: boolean;
-    configured?: boolean;
-  };
-  const [ssoConfig, setSsoConfig] = useState<SsoConfig | null>(null);
-  const [isSavingSso, setIsSavingSso] = useState(false);
-  const [ssoError, setSsoError] = useState("");
-  const [ssoSuccess, setSsoSuccess] = useState("");
-
-  useEffect(() => {
-    fetch("/api/auth/me", { credentials: "include" })
-      .then((res) => {
-        if (res.status === 401) {
-          router.push("/login");
-          return null;
-        }
-        if (!res.ok) throw new Error("Failed to load session");
-        return res.json();
-      })
-      .then((data) => {
-        if (data) {
-          setUser({
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.name,
-            orgId: data.org?.id || null,
-            role: data.role || null
-          });
-        }
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [router]);
-
-  useEffect(() => {
-    if (user?.orgId) {
-      loadGrants();
-      loadEntitlements();
-      if (user.role === "owner" || user.role === "admin") {
-        loadAuditLogs();
-        loadApiKeys();
-        loadOauthClients();
-        loadSsoConfig();
-      }
-    }
-  }, [user?.orgId, user?.role]);
-
-  const loadGrants = async () => {
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/grants`);
-      if (res.ok) setGrants(await res.json());
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const loadEntitlements = async () => {
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/entitlements`);
-      if (res.ok) setEntitlements(await res.json());
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const loadSsoConfig = async () => {
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/sso`);
-      if (res.ok) setSsoConfig(await res.json());
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const loadAuditLogs = async () => {
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/audit`);
-      if (res.ok) setAuditLogs(await res.json());
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const loadApiKeys = async () => {
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/api-keys`);
-      if (res.ok) setApiKeys(await res.json());
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const loadOauthClients = async () => {
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/oauth/clients`);
-      if (res.ok) setOauthClients(await res.json());
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleCreateOrg = async (e: React.FormEvent<HTMLFormElement>) => {
+  async function handleCreateOrg(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-    setCreatingOrg(true);
-
-    const formData = new FormData(e.currentTarget);
-    const name = formData.get("name");
-
+    setCreating(true);
+    const name = new FormData(e.currentTarget).get("name");
     try {
       const res = await fetch("/api/orgs", {
         method: "POST",
@@ -223,824 +29,110 @@ export default function AppPage() {
         body: JSON.stringify({ name }),
         credentials: "include",
       });
-
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.message || "Failed to create org");
       }
-      
-      const newOrg = await res.json();
-      
-      setUser({
-        id: newOrg.user.id,
-        email: newOrg.user.email,
-        name: newOrg.user.name,
-        orgId: newOrg.org.id,
-        role: newOrg.role
-      });
-    } catch (err: any) {
-      setError(err.message);
-      setCreatingOrg(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    router.push("/login");
-  };
-
-  const handleInvite = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setInviteError("");
-    setInviteToken("");
-    setIsInviting(true);
-
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get("email");
-    const role = formData.get("role");
-
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/invites`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, role }),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Failed to invite user");
-      }
-      
-      const data = await res.json();
-      setInviteToken(data.token);
-      (e.target as HTMLFormElement).reset();
-    } catch (err: any) {
-      setInviteError(err.message);
-    } finally {
-      setIsInviting(false);
-    }
-  };
-
-  const handleSetGrant = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setGrantError("");
-    setGrantSuccess("");
-    setIsSettingGrant(true);
-
-    const formData = new FormData(e.currentTarget);
-    const userId = formData.get("userId");
-    const product = formData.get("product");
-    const level = formData.get("level");
-    const reason = formData.get("reason");
-
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/grants`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, product, level, reason }),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || data.error || "Failed to set grant");
-      }
-      
-      setGrantSuccess("Grant successfully updated!");
-      (e.target as HTMLFormElement).reset();
-      loadGrants();
-      loadAuditLogs();
-    } catch (err: any) {
-      setGrantError(err.message);
-    } finally {
-      setIsSettingGrant(false);
-    }
-  };
-
-  const handleTestExport = async () => {
-    setExportError("");
-    setExportResult(null);
-    try {
-      const res = await fetch(`/api/products/mailguard/export`);
-      const data = await res.json();
-      
-      if (!res.ok) {
-        setExportError(data.reason ? `${data.reasonCode}: ${data.reason}` : (data.error || "Forbidden"));
-      } else {
-        setExportResult(data);
-      }
-      
-      if (user?.role === "owner" || user?.role === "admin") {
-        loadAuditLogs();
-      }
-    } catch (err: any) {
-      setExportError(err.message);
-    }
-  };
-
-  const handleChangePlan = async (plan: string) => {
-    setIsChangingPlan(true);
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/plan`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || "Failed to change plan");
-      }
-      await loadEntitlements();
+      await refresh();
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setIsChangingPlan(false);
+      setCreating(false);
     }
-  };
-
-  const handleSaveSso = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setSsoError("");
-    setSsoSuccess("");
-    setIsSavingSso(true);
-    const fd = new FormData(e.currentTarget);
-    try {
-      const body: Record<string, unknown> = {
-        issuer: fd.get("issuer"),
-        clientId: fd.get("clientId"),
-        enabled: fd.get("enabled") === "on",
-      };
-      const secret = fd.get("clientSecret") as string;
-      if (secret) body.clientSecret = secret;
-
-      const res = await fetch(`/api/orgs/${user?.orgId}/sso`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to save SSO config");
-      setSsoSuccess("SSO configuration saved.");
-      setSsoConfig(data);
-    } catch (err: any) {
-      setSsoError(err.message);
-    } finally {
-      setIsSavingSso(false);
-    }
-  };
-
-  const handleCreateApiKey = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setApiKeyError("");
-    setNewApiKeyRaw("");
-    setIsCreatingKey(true);
-
-    const formData = new FormData(e.currentTarget);
-    const name = formData.get("name");
-    const product = formData.get("product");
-    const level = formData.get("level");
-
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/api-keys`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, product, level }),
-        credentials: "include",
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || "Failed to create API key");
-      
-      setNewApiKeyRaw(data.rawKey);
-      (e.target as HTMLFormElement).reset();
-      loadApiKeys();
-      loadAuditLogs();
-    } catch (err: any) {
-      setApiKeyError(err.message);
-    } finally {
-      setIsCreatingKey(false);
-    }
-  };
-
-  const handleRevokeApiKey = async (keyId: string) => {
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/api-keys/${keyId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to revoke API key");
-      loadApiKeys();
-      loadAuditLogs();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleCreateOauthClient = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setOauthError("");
-    setIsCreatingClient(true);
-
-    const formData = new FormData(e.currentTarget);
-    const name = formData.get("name");
-    const redirectUrisStr = formData.get("redirectUris") as string;
-    const redirectUris = redirectUrisStr.split(",").map(s => s.trim()).filter(Boolean);
-
-    try {
-      const res = await fetch(`/api/orgs/${user?.orgId}/oauth/clients`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, redirectUris }),
-        credentials: "include",
-      });
-
-      if (!res.ok) throw new Error("Failed to create OAuth client");
-      
-      (e.target as HTMLFormElement).reset();
-      loadOauthClients();
-    } catch (err: any) {
-      setOauthError(err.message);
-    } finally {
-      setIsCreatingClient(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <main className="center-layout">
-        <div style={{ color: "var(--primary)" }}>Loading...</div>
-      </main>
-    );
   }
 
-  if (!user) return null;
-
-  return (
-    <main className="container">
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-        <h2>Dashboard</h2>
-        <button onClick={handleLogout} className="btn btn-secondary" style={{ padding: "0.5rem 1rem", width: "auto" }}>
-          Sign Out
-        </button>
-      </header>
-
-      {error && <div className="error-msg">{error}</div>}
-
-      {!user.orgId ? (
-        <div className="card" style={{ margin: "0 auto" }}>
-          <h2>Setup Organization</h2>
-          <p className="subtitle" style={{ marginTop: "0.5rem" }}>You need an organization to get started.</p>
-          
+  if (!user.orgId) {
+    return (
+      <div className="center-layout">
+        <div className="card">
+          <h2>Set up your organization</h2>
+          <p className="subtitle" style={{ marginTop: "0.5rem" }}>Create a tenant to manage members and access.</p>
+          {error && <div className="error-msg" role="alert">{error}</div>}
           <form onSubmit={handleCreateOrg}>
             <div className="form-group">
-              <label htmlFor="name">Organization Name</label>
+              <label htmlFor="name">Organization name</label>
               <input id="name" name="name" type="text" required placeholder="Acme Corp" />
             </div>
-            <button type="submit" className="btn" disabled={creatingOrg} style={{ marginTop: "1rem" }}>
-              {creatingOrg ? "Creating..." : "Create Organization"}
+            <button type="submit" className="btn" disabled={creating}>
+              {creating ? "Creating..." : "Create organization"}
             </button>
           </form>
         </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-          
-          <div className="card">
-            <h2>Your Profile</h2>
-            <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "1rem", borderBottom: "1px solid var(--card-border)" }}>
-                <span style={{ color: "rgba(255,255,255,0.6)" }}>User ID</span>
-                <strong style={{ userSelect: "all" }}>{user.id}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "1rem", borderBottom: "1px solid var(--card-border)" }}>
-                <span style={{ color: "rgba(255,255,255,0.6)" }}>Email</span>
-                <strong>{user.email}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "1rem", borderBottom: "1px solid var(--card-border)" }}>
-                <span style={{ color: "rgba(255,255,255,0.6)" }}>Organization ID</span>
-                <strong>{user.orgId}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "rgba(255,255,255,0.6)" }}>Role</span>
-                <strong style={{ color: "var(--primary)" }}>{user.role}</strong>
-              </div>
+      </div>
+    );
+  }
+
+  const features = org?.entitlements ?? {};
+  const seatPct = org ? Math.min(100, (org.seatUsed / org.seatLimit) * 100) : 0;
+
+  return (
+    <div className="stack">
+      <div>
+        <h1 className="page-title">{org?.name}</h1>
+        <p className="page-lead">Organization overview</p>
+      </div>
+
+      <div className="card">
+        <h2>Profile</h2>
+        <div className="stack" style={{ marginTop: "1.25rem", gap: "0" }}>
+          <div className="row">
+            <span className="muted">Name</span>
+            <strong>{user.name}</strong>
+          </div>
+          <div className="row">
+            <span className="muted">Email</span>
+            <strong>{user.email}</strong>
+          </div>
+          <div className="row">
+            <span className="muted">Role</span>
+            <span className="badge">{user.role}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Plan</h2>
+        <div className="stack" style={{ marginTop: "1.25rem", gap: "0" }}>
+          <div className="row">
+            <span className="muted">Current plan</span>
+            <span className="badge">{org?.plan}</span>
+          </div>
+          <div className="row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+            <div className="row" style={{ border: "none", padding: 0 }}>
+              <span className="muted">Seats</span>
+              <span><strong>{org?.seatUsed}</strong> / {org?.seatLimit}</span>
+            </div>
+            <div style={{ height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${seatPct}%`, background: seatPct >= 100 ? "var(--danger)" : "var(--primary)" }} />
             </div>
           </div>
-
-          {/* Plan & Entitlements Card */}
-          {entitlements && (
-            <div className="card">
-              <h2>Plan &amp; Entitlements</h2>
-              <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: "1rem", borderBottom: "1px solid var(--card-border)" }}>
-                  <span style={{ color: "rgba(255,255,255,0.6)" }}>Current Plan</span>
-                  <strong style={{ textTransform: "capitalize", color: "var(--primary)", fontSize: "1.1rem" }}>{entitlements.plan}</strong>
-                </div>
-                <div style={{ paddingBottom: "1rem", borderBottom: "1px solid var(--card-border)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                    <span style={{ color: "rgba(255,255,255,0.6)" }}>Seats Used</span>
-                    <span><strong>{entitlements.seatUsed}</strong> / {entitlements.seatLimit}</span>
+          <div style={{ paddingTop: "1rem" }}>
+            <p className="muted" style={{ marginBottom: "0.75rem", fontSize: "0.9rem" }}>Features</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+              {Object.entries(FEATURE_LABELS).map(([key, label]) => {
+                const on = Boolean((features as Record<string, boolean>)[key]);
+                return (
+                  <div key={key} style={{ display: "flex", gap: "0.5rem", fontSize: "0.9rem" }}>
+                    <span style={{ color: on ? "rgb(74,222,128)" : "rgb(248,113,113)" }} aria-hidden>{on ? "✓" : "–"}</span>
+                    <span style={{ color: on ? "white" : "rgba(255,255,255,0.4)" }}>{label}</span>
                   </div>
-                  <div style={{ height: "6px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${Math.min(100, (entitlements.seatUsed / entitlements.seatLimit) * 100)}%`, backgroundColor: entitlements.seatUsed >= entitlements.seatLimit ? "#ef4444" : "var(--primary)", borderRadius: "3px", transition: "width 0.3s" }} />
-                  </div>
-                </div>
-                <div style={{ paddingBottom: "1rem", borderBottom: "1px solid var(--card-border)" }}>
-                  <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: "0.75rem", fontSize: "0.9rem" }}>Features</p>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
-                    {(["api_keys", "oauth_clients", "sso", "ai_operator", "access_reviews"] as const).map((f) => (
-                      <div key={f} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
-                        <span style={{ color: entitlements.features[f] ? "rgb(74,222,128)" : "rgb(248,113,113)", fontWeight: 700 }}>
-                          {entitlements.features[f] ? "✓" : "✗"}
-                        </span>
-                        <span style={{ color: entitlements.features[f] ? "white" : "rgba(255,255,255,0.4)" }}>
-                          {f.replace(/_/g, " ")}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {user.role === "owner" && (
-                  <div>
-                    <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: "0.75rem", fontSize: "0.9rem" }}>Change Plan</p>
-                    <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-                      {(["free", "team", "enterprise"] as const).map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => handleChangePlan(p)}
-                          disabled={isChangingPlan || entitlements.plan === p}
-                          style={{
-                            padding: "0.5rem 1.25rem",
-                            borderRadius: "8px",
-                            border: entitlements.plan === p ? "2px solid var(--primary)" : "1px solid rgba(255,255,255,0.2)",
-                            background: entitlements.plan === p ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.05)",
-                            color: entitlements.plan === p ? "var(--primary)" : "white",
-                            cursor: entitlements.plan === p ? "default" : "pointer",
-                            textTransform: "capitalize",
-                            fontWeight: entitlements.plan === p ? 700 : 400,
-                            transition: "all 0.2s",
-                          }}
-                        >
-                          {isChangingPlan && entitlements.plan !== p ? "..." : p}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                );
+              })}
             </div>
-          )}
-
-          {/* SSO Configuration Card — enterprise only */}
-          {entitlements?.features.sso && (user?.role === "owner" || user?.role === "admin") && (
-            <div className="card">
-              <h2>SSO Configuration</h2>
-              <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.5rem" }}>
-                Federate login through your identity provider (Okta). Enterprise plan only.
-              </p>
-
-              {ssoError && <div className="error-msg">{ssoError}</div>}
-              {ssoSuccess && (
-                <div style={{ padding: "0.75rem 1rem", backgroundColor: "rgba(34,197,94,0.1)", border: "1px solid rgb(34,197,94)", borderRadius: "6px", color: "rgb(74,222,128)", marginBottom: "1rem" }}>
-                  {ssoSuccess}
-                </div>
-              )}
-
-              <form onSubmit={handleSaveSso}>
-                <div className="form-group">
-                  <label htmlFor="ssoIssuer">Issuer URL</label>
-                  <input id="ssoIssuer" name="issuer" type="url" required placeholder="https://dev-xxxxx.okta.com/oauth2/default" defaultValue={ssoConfig?.issuer ?? ""} />
-                  <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", marginTop: "0.35rem" }}>
-                    Integrator Free Plan: use <code>https://your-org.okta.com/oauth2/default</code>
-                  </p>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="ssoClientId">Client ID</label>
-                  <input id="ssoClientId" name="clientId" type="text" required placeholder="0oaxxxxxx" defaultValue={ssoConfig?.clientId ?? ""} />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="ssoClientSecret">Client Secret {ssoConfig?.hasSecret ? "(leave blank to keep existing)" : ""}</label>
-                  <input id="ssoClientSecret" name="clientSecret" type="password" placeholder={ssoConfig?.hasSecret ? "••••••••" : "Paste client secret"} />
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.5rem" }}>
-                  <input id="ssoEnabled" name="enabled" type="checkbox" defaultChecked={ssoConfig?.enabled !== false} style={{ width: "auto" }} />
-                  <label htmlFor="ssoEnabled" style={{ margin: 0, fontWeight: 400 }}>Enabled</label>
-                </div>
-                <button type="submit" className="btn" disabled={isSavingSso} style={{ width: "auto" }}>
-                  {isSavingSso ? "Saving..." : "Save SSO Config"}
-                </button>
-              </form>
-
-              {ssoConfig?.enabled && ssoConfig?.issuer && (
-                <div style={{ marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid var(--card-border)" }}>
-                  <p style={{ marginBottom: "0.75rem", color: "rgba(255,255,255,0.6)", fontSize: "0.9rem" }}>
-                    In Okta, add both Sign-in redirect URIs: <code>http://localhost:3000/api/auth/okta/callback</code> and <code>https://keystone-web-9yug.vercel.app/api/auth/okta/callback</code>. Then test:
-                  </p>
-                  <a
-                    href={`/api/auth/okta/authorize?org_id=${user?.orgId}`}
-                    className="btn"
-                    style={{ display: "inline-block", width: "auto", textDecoration: "none" }}
-                  >
-                    Continue with Okta →
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!entitlements?.features.sso && (user?.role === "owner" || user?.role === "admin") && (
-            <div className="card" style={{ borderColor: "rgba(139,92,246,0.3)" }}>
-              <h2>SSO Configuration</h2>
-              <div style={{ padding: "1.25rem", backgroundColor: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.4)", borderRadius: "8px", marginTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-                <div>
-                  <p style={{ color: "rgb(167,139,250)", fontWeight: 600, marginBottom: "0.25rem" }}>SSO requires Enterprise plan</p>
-                  <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>Upgrade to Enterprise to configure Okta SSO federation.</p>
-                </div>
-                {user.role === "owner" && (
-                  <button onClick={() => handleChangePlan("enterprise")} disabled={isChangingPlan} className="btn" style={{ width: "auto", padding: "0.5rem 1.25rem", whiteSpace: "nowrap" }}>
-                    {isChangingPlan ? "..." : "Upgrade to Enterprise"}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="card">
-            <h2>MailGuard Export Test</h2>
-            <p className="subtitle" style={{ marginBottom: "1rem" }}>Test your product grant for MailGuard 'operate' access.</p>
-            <button onClick={handleTestExport} className="btn" style={{ width: "auto" }}>
-              Test Export API
-            </button>
-            {exportError && <div className="error-msg" style={{ marginTop: "1rem" }}>{exportError}</div>}
-            {exportResult && (
-              <pre style={{ marginTop: "1rem", padding: "1rem", backgroundColor: "rgba(0,0,0,0.3)", borderRadius: "6px", overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                {JSON.stringify(exportResult, null, 2)}
-              </pre>
-            )}
           </div>
+        </div>
+      </div>
 
-          <div className="card">
-            <h2>Product Grants</h2>
-            {grants.length === 0 ? (
-              <p style={{ color: "rgba(255,255,255,0.6)" }}>No grants found.</p>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
-                      <th style={{ padding: "0.5rem" }}>User ID</th>
-                      <th style={{ padding: "0.5rem" }}>Product</th>
-                      <th style={{ padding: "0.5rem" }}>Level</th>
-                      <th style={{ padding: "0.5rem" }}>Expires At</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {grants.map((g) => (
-                      <tr key={g._id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                        <td style={{ padding: "0.5rem", fontSize: "0.9rem" }}>{g.principalId}</td>
-                        <td style={{ padding: "0.5rem" }}>{g.product}</td>
-                        <td style={{ padding: "0.5rem" }}>{g.level}</td>
-                        <td style={{ padding: "0.5rem", fontSize: "0.85rem" }}>{g.expiresAt ? new Date(g.expiresAt).toLocaleDateString() : 'Never'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+      {org?.slug && (
+        <div className="card">
+          <h2>SSO slug</h2>
+          <p className="page-lead" style={{ marginBottom: "1rem" }}>Members sign in with Okta using this organization slug.</p>
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <code style={{ flex: 1, padding: "0.75rem", background: "rgba(0,0,0,0.3)", borderRadius: "6px", wordBreak: "break-all" }}>{org.slug}</code>
+            <CopyButton text={org.slug} />
           </div>
-
-          {(user.role === "owner" || user.role === "admin") && (
-            <>
-              <div className="card">
-                <h2>Set Product Grant</h2>
-                <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.5rem" }}>
-                  Grant a member access to a product.
-                </p>
-
-                {grantError && <div className="error-msg">{grantError}</div>}
-                {grantSuccess && <div style={{ color: "rgb(74, 222, 128)", marginBottom: "1rem" }}>{grantSuccess}</div>}
-                
-                <form onSubmit={handleSetGrant}>
-                  <div className="form-group">
-                    <label htmlFor="userId">User ID</label>
-                    <input id="userId" name="userId" type="text" required placeholder="User ObjectId" />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="product">Product</label>
-                    <select id="product" name="product" required style={{ width: "100%", padding: "0.75rem 1rem", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid var(--card-border)", borderRadius: "8px", color: "white", outline: "none" }}>
-                      <option value="mailguard">MailGuard</option>
-                      <option value="brandwatch">BrandWatch</option>
-                      <option value="certradar">CertRadar</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="level">Level</label>
-                    <select id="level" name="level" required style={{ width: "100%", padding: "0.75rem 1rem", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid var(--card-border)", borderRadius: "8px", color: "white", outline: "none" }}>
-                      <option value="none">None</option>
-                      <option value="view">View</option>
-                      <option value="operate">Operate</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="reason">Reason (for Audit)</label>
-                    <input id="reason" name="reason" type="text" required placeholder="Provisioning new analyst" />
-                  </div>
-                  <button type="submit" className="btn" disabled={isSettingGrant} style={{ marginTop: "1rem" }}>
-                    {isSettingGrant ? "Setting..." : "Set Grant"}
-                  </button>
-                </form>
-              </div>
-
-              <div className="card">
-                <h2>Invite Members</h2>
-                <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.5rem" }}>
-                  Add new members to your organization.
-                </p>
-
-                {inviteError && <div className="error-msg">{inviteError}</div>}
-                
-                {inviteToken && (
-                  <div style={{ padding: "1rem", backgroundColor: "rgba(34, 197, 94, 0.1)", border: "1px solid rgb(34, 197, 94)", borderRadius: "6px", marginBottom: "1.5rem" }}>
-                    <p style={{ color: "rgb(74, 222, 128)", fontWeight: 600, marginBottom: "0.5rem" }}>Invite created successfully!</p>
-                    <p style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.8)", marginBottom: "0.5rem" }}>Share this link with the user (it will only be shown once):</p>
-                    <code style={{ display: "block", padding: "0.75rem", backgroundColor: "rgba(0,0,0,0.3)", borderRadius: "4px", wordBreak: "break-all" }}>
-                      {window.location.origin}/accept?token={inviteToken}
-                    </code>
-                  </div>
-                )}
-
-                <form onSubmit={handleInvite}>
-                  <div className="form-group">
-                    <label htmlFor="email">Email Address</label>
-                    <input id="email" name="email" type="email" required placeholder="colleague@acme.com" />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="role">Role</label>
-                    <select id="role" name="role" required style={{ width: "100%", padding: "0.75rem 1rem", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid var(--card-border)", borderRadius: "8px", color: "white", outline: "none" }}>
-                      <option value="admin">Admin</option>
-                      <option value="analyst">Analyst</option>
-                      <option value="billing">Billing</option>
-                      <option value="readonly">Read-Only</option>
-                    </select>
-                  </div>
-                  <button type="submit" className="btn" disabled={isInviting} style={{ marginTop: "1rem" }}>
-                    {isInviting ? "Inviting..." : "Send Invite"}
-                  </button>
-                </form>
-              </div>
-
-              <div className="card">
-                <h2>AI Operator</h2>
-                {entitlements?.features.ai_operator ? (
-                  <>
-                    <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.5rem" }}>
-                      Use English to propose access changes.
-                    </p>
-                    {aiError && <p className="error">{aiError}</p>}
-                    
-                    {!aiCommand ? (
-                      <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end", flexWrap: "wrap" }}>
-                        <div className="form-group" style={{ flex: 1, minWidth: "300px", margin: 0 }}>
-                          <label>Prompt</label>
-                          <input
-                            type="text"
-                            placeholder="e.g. Grant my user operate on MailGuard"
-                            value={aiPrompt}
-                            onChange={(e) => setAiPrompt(e.target.value)}
-                            className="input"
-                          />
-                        </div>
-                        <button onClick={handleAiPropose} disabled={!aiPrompt || isProposing} className="btn" style={{ width: "auto" }}>
-                          {isProposing ? "Proposing..." : "Propose"}
-                        </button>
-                      </div>
-                    ) : (
-                      <div>
-                        <div style={{ background: "rgba(0,0,0,0.3)", padding: "1rem", borderRadius: "8px", marginBottom: "1rem", fontFamily: "monospace", whiteSpace: "pre-wrap", overflowX: "auto", fontSize: "0.85rem" }}>
-                          {JSON.stringify(aiCommand, null, 2)}
-                        </div>
-                        <div style={{ display: "flex", gap: "0.75rem" }}>
-                          <button onClick={handleAiApply} disabled={isApplying || aiCommand.action === "reject"} className="btn" style={{ width: "auto" }}>
-                            {isApplying ? "Applying..." : "Apply"}
-                          </button>
-                          <button onClick={() => setAiCommand(null)} disabled={isApplying} className="btn" style={{ width: "auto", background: "transparent", border: "1px solid rgba(255,255,255,0.2)" }}>
-                            Discard
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div style={{ padding: "1.25rem", backgroundColor: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.4)", borderRadius: "8px", marginTop: "1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-                    <div>
-                      <p style={{ color: "rgb(167,139,250)", fontWeight: 600, marginBottom: "0.25rem" }}>AI operator is an Enterprise feature</p>
-                      <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>Upgrade to Enterprise to use natural language access control.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="card">
-                <h2>Audit Logs (Last 20)</h2>
-                {auditLogs.length === 0 ? (
-                  <p style={{ color: "rgba(255,255,255,0.6)" }}>No audit logs found.</p>
-                ) : (
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
-                          <th style={{ padding: "0.5rem" }}>Time</th>
-                          <th style={{ padding: "0.5rem" }}>Action</th>
-                          <th style={{ padding: "0.5rem" }}>Product</th>
-                          <th style={{ padding: "0.5rem" }}>Outcome</th>
-                          <th style={{ padding: "0.5rem" }}>Reason</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {auditLogs.map((log) => (
-                          <tr key={log._id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                            <td style={{ padding: "0.5rem", fontSize: "0.85rem" }}>{new Date(log.createdAt).toLocaleString()}</td>
-                            <td style={{ padding: "0.5rem", fontSize: "0.9rem" }}>{log.action}</td>
-                            <td style={{ padding: "0.5rem" }}>{log.product || "-"}</td>
-                            <td style={{ padding: "0.5rem" }}>
-                              <span style={{ color: log.outcome === "allow" ? "rgb(74, 222, 128)" : "rgb(248, 113, 113)" }}>
-                                {log.outcome}
-                              </span>
-                            </td>
-                            <td style={{ padding: "0.5rem", fontSize: "0.85rem" }}>{log.reason}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              <div className="card">
-                <h2>API Keys</h2>
-                <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.5rem" }}>
-                  Service accounts for automated product access.
-                </p>
-
-                {apiKeyError && <div className="error-msg">{apiKeyError}</div>}
-                
-                {newApiKeyRaw && (
-                  <div style={{ padding: "1rem", backgroundColor: "rgba(34, 197, 94, 0.1)", border: "1px solid rgb(34, 197, 94)", borderRadius: "6px", marginBottom: "1.5rem" }}>
-                    <p style={{ color: "rgb(74, 222, 128)", fontWeight: 600, marginBottom: "0.5rem" }}>API Key created successfully!</p>
-                    <p style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.8)", marginBottom: "0.5rem" }}>Copy this key now. You won't be able to see it again:</p>
-                    <code style={{ display: "block", padding: "0.75rem", backgroundColor: "rgba(0,0,0,0.3)", borderRadius: "4px", wordBreak: "break-all", userSelect: "all" }}>
-                      {newApiKeyRaw}
-                    </code>
-                  </div>
-                )}
-
-                {entitlements && !entitlements.features.api_keys ? (
-                  <div style={{ padding: "1.25rem", backgroundColor: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.4)", borderRadius: "8px", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-                    <div>
-                      <p style={{ color: "rgb(234,179,8)", fontWeight: 600, marginBottom: "0.25rem" }}>API Keys require Team or higher</p>
-                      <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>Your org is on the <strong>{entitlements.plan}</strong> plan. Upgrade to unlock API keys.</p>
-                    </div>
-                    {user.role === "owner" && (
-                      <button onClick={() => handleChangePlan("team")} disabled={isChangingPlan} className="btn" style={{ width: "auto", padding: "0.5rem 1.25rem", whiteSpace: "nowrap" }}>
-                        {isChangingPlan ? "..." : "Upgrade to Team"}
-                      </button>
-                    )}
-                  </div>
-                ) : null}
-
-                <form onSubmit={handleCreateApiKey} style={{ marginBottom: "2rem", opacity: entitlements && !entitlements.features.api_keys ? 0.4 : 1, pointerEvents: entitlements && !entitlements.features.api_keys ? "none" : "auto" }}>
-                  <div className="form-group">
-                    <label htmlFor="keyName">Name</label>
-                    <input id="keyName" name="name" type="text" required placeholder="Production Sync" />
-                  </div>
-                  <div style={{ display: "flex", gap: "1rem" }}>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label htmlFor="keyProduct">Product</label>
-                      <select id="keyProduct" name="product" required style={{ width: "100%", padding: "0.75rem 1rem", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid var(--card-border)", borderRadius: "8px", color: "white", outline: "none" }}>
-                        <option value="mailguard">MailGuard</option>
-                        <option value="brandwatch">BrandWatch</option>
-                        <option value="certradar">CertRadar</option>
-                      </select>
-                    </div>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label htmlFor="keyLevel">Level</label>
-                      <select id="keyLevel" name="level" required style={{ width: "100%", padding: "0.75rem 1rem", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid var(--card-border)", borderRadius: "8px", color: "white", outline: "none" }}>
-                        <option value="view">View</option>
-                        <option value="operate">Operate</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
-                  </div>
-                  <button type="submit" className="btn" disabled={isCreatingKey}>
-                    {isCreatingKey ? "Creating..." : "Create API Key"}
-                  </button>
-                </form>
-
-                {apiKeys.length > 0 && (
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
-                          <th style={{ padding: "0.5rem" }}>Name</th>
-                          <th style={{ padding: "0.5rem" }}>Prefix</th>
-                          <th style={{ padding: "0.5rem" }}>Product</th>
-                          <th style={{ padding: "0.5rem" }}>Level</th>
-                          <th style={{ padding: "0.5rem" }}>Status</th>
-                          <th style={{ padding: "0.5rem" }}>Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {apiKeys.map((k) => (
-                          <tr key={k._id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", opacity: k.revokedAt ? 0.5 : 1 }}>
-                            <td style={{ padding: "0.5rem" }}>{k.name}</td>
-                            <td style={{ padding: "0.5rem" }}><code style={{ background: "rgba(0,0,0,0.3)", padding: "2px 4px", borderRadius: "4px" }}>{k.prefix}...</code></td>
-                            <td style={{ padding: "0.5rem" }}>{k.product}</td>
-                            <td style={{ padding: "0.5rem" }}>{k.level}</td>
-                            <td style={{ padding: "0.5rem" }}>{k.revokedAt ? "Revoked" : "Active"}</td>
-                            <td style={{ padding: "0.5rem" }}>
-                              {!k.revokedAt && (
-                                <button onClick={() => handleRevokeApiKey(k._id)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", textDecoration: "underline" }}>Revoke</button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              <div className="card">
-                <h2>OAuth Clients</h2>
-                <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.5rem" }}>
-                  Product apps that authenticate users via PKCE.
-                </p>
-
-                {oauthError && <div className="error-msg">{oauthError}</div>}
-
-                {entitlements && !entitlements.features.oauth_clients ? (
-                  <div style={{ padding: "1.25rem", backgroundColor: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.4)", borderRadius: "8px", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-                    <div>
-                      <p style={{ color: "rgb(234,179,8)", fontWeight: 600, marginBottom: "0.25rem" }}>OAuth Clients require Team or higher</p>
-                      <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)" }}>Your org is on the <strong>{entitlements.plan}</strong> plan. Upgrade to unlock OAuth clients.</p>
-                    </div>
-                    {user.role === "owner" && (
-                      <button onClick={() => handleChangePlan("team")} disabled={isChangingPlan} className="btn" style={{ width: "auto", padding: "0.5rem 1.25rem", whiteSpace: "nowrap" }}>
-                        {isChangingPlan ? "..." : "Upgrade to Team"}
-                      </button>
-                    )}
-                  </div>
-                ) : null}
-
-                <form onSubmit={handleCreateOauthClient} style={{ marginBottom: "2rem", opacity: entitlements && !entitlements.features.oauth_clients ? 0.4 : 1, pointerEvents: entitlements && !entitlements.features.oauth_clients ? "none" : "auto" }}>
-                  <div className="form-group">
-                    <label htmlFor="clientName">App Name</label>
-                    <input id="clientName" name="name" type="text" required placeholder="MailGuard Dev" />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="redirectUris">Redirect URIs (comma separated)</label>
-                    <input id="redirectUris" name="redirectUris" type="text" required placeholder="http://localhost:3000/oauth/demo" />
-                  </div>
-                  <button type="submit" className="btn" disabled={isCreatingClient}>
-                    {isCreatingClient ? "Creating..." : "Create Client"}
-                  </button>
-                </form>
-
-                {oauthClients.length > 0 && (
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
-                          <th style={{ padding: "0.5rem" }}>Name</th>
-                          <th style={{ padding: "0.5rem" }}>Client ID</th>
-                          <th style={{ padding: "0.5rem" }}>Redirect URIs</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {oauthClients.map((c) => (
-                          <tr key={c._id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                            <td style={{ padding: "0.5rem" }}>{c.name}</td>
-                            <td style={{ padding: "0.5rem" }}><code style={{ background: "rgba(0,0,0,0.3)", padding: "2px 4px", borderRadius: "4px" }}>{c.clientId}</code></td>
-                            <td style={{ padding: "0.5rem", fontSize: "0.85rem" }}>{c.redirectUris.join(", ")}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                
-                <div style={{ marginTop: "20px", textAlign: "center" }}>
-                  <button onClick={() => router.push("/oauth/demo")} className="btn btn-secondary" style={{ width: "auto" }}>Go to OAuth PKCE Demo</button>
-                </div>
-              </div>
-
-            </>
-          )}
         </div>
       )}
-    </main>
+    </div>
   );
 }

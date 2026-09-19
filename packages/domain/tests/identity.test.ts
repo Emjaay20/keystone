@@ -1,7 +1,7 @@
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { connectDb, type Database } from "../src/db/client.js";
 import { register, login, me } from "../src/auth/service.js";
-import { createOrg, listOrgs } from "../src/orgs/service.js";
+import { createOrg, listOrgs, listMembers } from "../src/orgs/service.js";
 
 describe("slice 1 — identity (domain)", () => {
   let mongo: MongoMemoryServer;
@@ -34,6 +34,11 @@ describe("slice 1 — identity (domain)", () => {
     const mePayload = await me(database.db, token);
     expect(mePayload.org?.name).toBe("Northwind Security");
     expect(mePayload.role).toBe("owner");
+
+    const members = await listMembers(database.db, token, created.org!.id);
+    expect(members).toHaveLength(1);
+    expect(members[0].email).toBe("yusuf@example.com");
+    expect(members[0].role).toBe("owner");
   });
 
   it("rejects short passwords and unknown logins without leaking account existence", async () => {

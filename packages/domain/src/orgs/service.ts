@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import type { Db } from "mongodb";
-import { memberships, orgs } from "../db/collections.js";
+import { memberships, orgs, users } from "../db/collections.js";
 import { errors } from "../http/errors.js";
 import { publicOrg } from "../http/public.js";
 import { slugify } from "../security/crypto.js";
@@ -87,6 +87,32 @@ export async function listOrgs(db: Db, token: string | undefined) {
   return {
     orgs: orgsResult
   };
+}
+
+export async function listMembers(db: Db, token: string | undefined, orgIdString: string) {
+  const ctx = await requireUser(db, token);
+  if (!ctx.org || ctx.org._id.toHexString() !== orgIdString) {
+    throw errors.forbidden("Active membership required in this org");
+  }
+
+  const orgId = new ObjectId(orgIdString);
+  const mems = await memberships(db).find({ orgId }).toArray();
+  const userDocs = await users(db)
+    .find({ _id: { $in: mems.map((m) => m.userId) } })
+    .toArray();
+  const byId = new Map(userDocs.map((u) => [u._id.toHexString(), u]));
+
+  return mems.map((m) => {
+    const u = byId.get(m.userId.toHexString());
+    return {
+      id: m.userId.toHexString(),
+      email: u?.email ?? "",
+      name: u?.name ?? "",
+      role: m.role,
+      status: m.status,
+      createdAt: m.createdAt.toISOString(),
+    };
+  });
 }
 
 export async function switchOrg(db: Db, token: string | undefined, params: unknown) {

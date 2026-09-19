@@ -147,6 +147,23 @@ type SsoUserInput = {
   orgId: string;
 };
 
+export async function discoverSsoLogin(db: Db, slug: string) {
+  const org = await orgs(db).findOne({ slug: slug.trim() });
+  if (!org) {
+    throw errors.notFound("SSO is not available for this organization");
+  }
+  try {
+    assertFeature(org, "sso");
+  } catch {
+    throw errors.notFound("SSO is not available for this organization");
+  }
+  const conn = await ssoConnections(db).findOne({ orgId: org._id, enabled: true });
+  if (!conn) {
+    throw errors.notFound("SSO is not available for this organization");
+  }
+  return { orgId: org._id.toHexString(), name: org.name };
+}
+
 export async function findOrCreateSsoUser(db: Db, input: SsoUserInput): Promise<string> {
   const email = input.email.toLowerCase();
   const orgIdObj = new ObjectId(input.orgId);

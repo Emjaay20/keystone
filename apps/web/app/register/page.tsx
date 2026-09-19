@@ -66,7 +66,8 @@ function RegisterContent() {
           
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input id="password" name="password" type="password" required placeholder="••••••••" minLength={12} />
+            <input id="password" name="password" type="password" required placeholder="••••••••" minLength={12} autoComplete="new-password" />
+            <p className="hint">At least 12 characters</p>
           </div>
 
           <button type="submit" className="btn" disabled={loading} style={{ marginTop: "1rem" }}>

@@ -10,6 +10,8 @@ function LoginContent() {
   const returnTo = searchParams.get("returnTo");
   const [error, setError] = useState(searchParams.get("error") ?? "");
   const [loading, setLoading] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState(false);
+  const [slug, setSlug] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -50,7 +52,7 @@ function LoginContent() {
         <h1>Welcome Back</h1>
         <p className="subtitle">Sign in to access your dashboard.</p>
 
-        {error && <div className="error-msg">{error}</div>}
+        {error && <div className="error-msg" role="alert">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -65,6 +67,34 @@ function LoginContent() {
 
           <button type="submit" className="btn" disabled={loading} style={{ marginTop: "1rem" }}>
             {loading ? "Signing In..." : "Sign In"}
+          </button>
+        </form>
+
+        <div className="divider">or</div>
+
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setError("");
+            setSsoLoading(true);
+            try {
+              const res = await fetch(`/api/auth/okta/discover?slug=${encodeURIComponent(slug.trim())}`);
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.message || "SSO is not available for this organization");
+              window.location.href = `/api/auth/okta/authorize?org_id=${data.orgId}`;
+            } catch (err: any) {
+              setError(err.message);
+              setSsoLoading(false);
+            }
+          }}
+        >
+          <div className="form-group">
+            <label htmlFor="orgSlug">Organization slug</label>
+            <input id="orgSlug" value={slug} onChange={(e) => setSlug(e.target.value)} required placeholder="acme-corp-…" />
+            <p className="hint">From Org → SSO slug in the console</p>
+          </div>
+          <button type="submit" className="btn btn-secondary" disabled={ssoLoading || !slug.trim()}>
+            {ssoLoading ? "Continuing..." : "Continue with Okta"}
           </button>
         </form>
 
