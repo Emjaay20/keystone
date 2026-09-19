@@ -139,3 +139,43 @@ export async function switchOrg(db: Db, token: string | undefined, params: unkno
   
   return { token: newToken, payload: await toSessionPayload(db, ctx.user, org, membership.role) };
 }
+
+export async function removeMember(db: Db, token: string | undefined, orgIdString: string, targetUserIdString: string) {
+  const ctx = await requireUser(db, token);
+  if (!ctx.org || ctx.org._id.toHexString() !== orgIdString) {
+    throw errors.forbidden("Active membership required in this org");
+  }
+
+  // Ensure requester is owner or admin
+  const requesterMembership = await memberships(db).findOne({
+    orgId: ctx.org._id,
+    userId: ctx.user._id,
+    status: "active"
+  });
+  
+  if (!requesterMembership || (requesterMembership.role !== "owner" && requesterMembership.role !== "admin")) {
+    throw errors.forbidden("Only owners and admins can remove members");
+  }
+
+  const targetUserId = new ObjectId(targetUserIdString);
+  const targetMembership = await memberships(db).findOne({
+    orgId: ctx.org._id,
+    userId: targetUserId
+  });
+
+  if (!targetMembership) {
+    throw errors.notFound("Membership not found");
+  }
+
+  // Prevent removing the last owner
+  if (targetMembership.role === "owner") {
+    const ownerCount = await memberships(db).countDocuments({ orgId: ctx.org._id, role: "owner", status: "active" });
+    if (ownerCount <= 1) {
+      throw errors.conflict("Cannot remove the last owner of the organization");
+    }
+  }
+
+  // Delete the membership
+  await memberships(db).deleteOne({ _id: targetMembership._id });
+  return { success: true };
+}

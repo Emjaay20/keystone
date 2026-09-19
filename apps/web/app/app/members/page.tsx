@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CopyButton } from "../../components/copy-button";
 import { useAppSession } from "../session-context";
+import toast from "react-hot-toast";
 
 type Member = { id: string; email: string; name: string; role: string; status: string };
 
@@ -41,9 +42,30 @@ export default function MembersPage() {
       setInviteToken(data.token);
       (e.target as HTMLFormElement).reset();
     } catch (err: any) {
+      toast.error(err.message);
       setInviteError(err.message);
     } finally {
       setIsInviting(false);
+    }
+  }
+
+  
+  async function handleRemoveMember(targetUserId: string) {
+    if (!confirm("Are you sure you want to remove this member?")) return;
+    
+    try {
+      const res = await fetch(`/api/orgs/${user.orgId}/members/${targetUserId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to remove member");
+      }
+      toast.success("Member removed successfully");
+      await load();
+    } catch (err: any) {
+      toast.error(err.message);
     }
   }
 
@@ -68,6 +90,7 @@ export default function MembersPage() {
                   <th>Email</th>
                   <th>Role</th>
                   <th>Status</th>
+                  {canInvite && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -77,6 +100,18 @@ export default function MembersPage() {
                     <td>{m.email}</td>
                     <td className="badge">{m.role}</td>
                     <td>{m.status}</td>
+                    {canInvite && (
+                      <td>
+                        <button 
+                          onClick={() => handleRemoveMember(m.id)} 
+                          className="btn btn-secondary" 
+                          style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", width: "auto" }}
+                          disabled={m.id === user.id}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
