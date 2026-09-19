@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useAppSession } from "../session-context";
+import toast from "react-hot-toast";
+import { CreditCard, ShieldCheck } from "lucide-react";
 
 type SsoConfig = {
   issuer?: string;
@@ -29,27 +31,36 @@ export default function SettingsPage() {
       .catch(() => setSsoConfig(null));
   }, [user.orgId]);
 
+  
   async function handleChangePlan(plan: string) {
     if (org?.plan === plan) return;
-    if (!confirm(`Switch plan to ${plan}?`)) return;
-    setIsChangingPlan(true);
-    setPlanError("");
-    try {
-      const res = await fetch(`/api/orgs/${user.orgId}/plan`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-        credentials: "include",
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to change plan");
-      await refresh();
-    } catch (err: any) {
-      setPlanError(err.message);
-    } finally {
-      setIsChangingPlan(false);
-    }
+    
+    // Mock Stripe Checkout flow
+    const switchPlan = async () => {
+      setIsChangingPlan(true);
+      try {
+        const res = await fetch(`/api/orgs/${user.orgId}/plan`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan }),
+          credentials: "include",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || "Failed to change plan");
+        await refresh();
+        return "Plan upgraded successfully!";
+      } finally {
+        setIsChangingPlan(false);
+      }
+    };
+
+    toast.promise(switchPlan(), {
+      loading: 'Redirecting to secure checkout...',
+      success: 'Subscription updated! Welcome to ' + plan.toUpperCase(),
+      error: (err) => `Payment failed: ${err.message}`,
+    });
   }
+
 
   async function handleSaveSso(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -73,9 +84,11 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to save SSO config");
+      toast.success("SSO configuration saved.");
       setSsoSuccess("SSO configuration saved.");
       setSsoConfig(data);
     } catch (err: any) {
+      toast.error(err.message);
       setSsoError(err.message);
     } finally {
       setIsSavingSso(false);
@@ -93,7 +106,7 @@ export default function SettingsPage() {
         <div className="card">
           <h2>Plan</h2>
           <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.25rem" }}>Current plan: <strong style={{ textTransform: "capitalize" }}>{org?.plan}</strong></p>
-          {planError && <div className="error-msg" role="alert">{planError}</div>}
+          
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             {(["free", "team", "enterprise"] as const).map((p) => (
               <button
@@ -124,7 +137,7 @@ export default function SettingsPage() {
             <p className="muted" style={{ marginTop: "0.35rem" }}>Upgrade to federate login through Okta.</p>
             {isOwner && (
               <button type="button" className="btn" onClick={() => handleChangePlan("enterprise")} disabled={isChangingPlan} style={{ width: "auto", marginTop: "1rem" }}>
-                Upgrade to Enterprise
+                <span style={{display:"flex", alignItems:"center", gap:"0.5rem"}}><CreditCard size={16}/> Upgrade to Enterprise</span>
               </button>
             )}
           </div>
@@ -134,7 +147,7 @@ export default function SettingsPage() {
               Okta OIDC. Sign-in redirect URIs must include this origin plus <code>/api/auth/okta/callback</code>. Members sign in from the login page using the org slug.
             </p>
             {ssoError && <div className="error-msg" role="alert">{ssoError}</div>}
-            {ssoSuccess && <p style={{ color: "rgb(74,222,128)", marginBottom: "1rem" }}>{ssoSuccess}</p>}
+            
             {isOwner ? (
               <form onSubmit={handleSaveSso}>
                 <div className="form-group">
