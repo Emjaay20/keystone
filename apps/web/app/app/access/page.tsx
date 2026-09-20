@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useAppSession } from "../session-context";
-import toast from "react-hot-toast";
 
 type Member = { id: string; email: string; name: string };
 type Grant = { _id: string; principalId: string; product: string; level: string; expiresAt: string | null };
@@ -19,6 +18,7 @@ export default function AccessPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [grants, setGrants] = useState<Grant[]>([]);
   const [grantError, setGrantError] = useState("");
+  const [grantSuccess, setGrantSuccess] = useState("");
   
   const [isSettingGrant, setIsSettingGrant] = useState(false);
   const [exportResult, setExportResult] = useState<unknown>(null);
@@ -28,6 +28,7 @@ export default function AccessPage() {
   const [isProposing, setIsProposing] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [aiSuccess, setAiSuccess] = useState("");
 
   async function load() {
     const [g, m] = await Promise.all([
@@ -51,7 +52,7 @@ export default function AccessPage() {
   async function handleSetGrant(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setGrantError("");
-    toast.success("Grant saved successfully!");
+    setGrantSuccess("");
     setIsSettingGrant(true);
     const fd = new FormData(e.currentTarget);
     try {
@@ -68,10 +69,9 @@ export default function AccessPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || data.error || "Failed to set grant");
-      toast.success("Grant saved successfully!");
+      setGrantSuccess("Grant saved successfully!");
       (e.target as HTMLFormElement).reset();
       await load();
-      toast.success("AI command applied successfully");
     } catch (err: any) {
       setGrantError(err.message);
     } finally {
@@ -112,6 +112,7 @@ export default function AccessPage() {
   async function handleAiApply() {
     setIsApplying(true);
     setAiError("");
+    setAiSuccess("");
     try {
       const res = await fetch(`/api/orgs/${user.orgId}/ai/apply`, {
         method: "POST",
@@ -120,7 +121,8 @@ export default function AccessPage() {
         credentials: "include",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.message || "Failed to apply");
+      if (!res.ok) throw new Error(data.message || "Failed to apply");
+      setAiSuccess("AI command applied successfully!");
       setAiCommand(null);
       setAiPrompt("");
       await load();
@@ -173,6 +175,7 @@ export default function AccessPage() {
           <h2>Set grant</h2>
           <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.25rem" }}>Give a member access to a product.</p>
           {grantError && <div className="error-msg" role="alert">{grantError}</div>}
+          {grantSuccess && <div style={{ background: "rgba(34, 197, 94, 0.1)", color: "#4ade80", padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(34, 197, 94, 0.2)", marginBottom: "1.5rem", fontSize: "0.875rem" }}>{grantSuccess}</div>}
           
           <form onSubmit={handleSetGrant}>
             <div className="form-group">
@@ -219,6 +222,7 @@ export default function AccessPage() {
             <>
               <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.25rem" }}>Propose an access change in plain language. A human must apply it.</p>
               {aiError && <div className="error-msg" role="alert">{aiError}</div>}
+              {aiSuccess && <div style={{ background: "rgba(34, 197, 94, 0.1)", color: "#4ade80", padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(34, 197, 94, 0.2)", marginBottom: "1.5rem", fontSize: "0.875rem" }}>{aiSuccess}</div>}
               {!aiCommand ? (
                 <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end", flexWrap: "wrap" }}>
                   <div className="form-group" style={{ flex: 1, minWidth: "240px", margin: 0 }}>

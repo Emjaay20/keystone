@@ -116,90 +116,47 @@ export default function OrgPage() {
           </div>
         </div>
 
-        {/* Plan Card */}
-        <div className="card" style={{ display: "flex", flexDirection: "column" }}>
-          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}><Sparkles size={20} /> Current Plan</h2>
-          <div className="stack" style={{ marginTop: "1.25rem", gap: "0", flex: 1 }}>
-            <div className="row">
-              <span className="muted">Subscription</span>
-              <span className="badge" style={{ textTransform: "uppercase" }}>{org?.plan}</span>
-            </div>
-            <div className="row" style={{ flexDirection: "column", alignItems: "stretch", paddingBottom: "1.25rem" }}>
-              <div className="row" style={{ border: "none", padding: 0 }}>
-                <span className="muted">Seats</span>
-                <span><strong>{org?.seatUsed}</strong> / {org?.seatLimit}</span>
-              </div>
-              <div style={{ height: "6px", background: "rgba(255,255,255,0.1)", borderRadius: "3px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${seatPct}%`, background: seatPct >= 100 ? "var(--danger)" : "var(--primary)" }} />
-              </div>
-            </div>
-            <div style={{ paddingTop: "0.5rem", borderTop: "1px solid var(--border)" }}>
-              <p className="muted" style={{ marginBottom: "0.75rem", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Entitlements</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                {Object.entries(FEATURE_LABELS).map(([key, label]) => {
-                  const on = Boolean((features as Record<string, boolean>)[key]);
-                  return (
-                    <div key={key} style={{ display: "flex", gap: "0.5rem", fontSize: "0.9rem", alignItems: "center" }}>
-                      {on ? <CheckCircle2 size={16} color="rgb(74,222,128)" /> : <XCircle size={16} color="rgb(248,113,113)" />}
-                      <span style={{ color: on ? "white" : "rgba(255,255,255,0.4)" }}>{label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
-        
-        {/* Recent Activity */}
-        <div className="card">
-          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}><History size={20} /> Recent Activity</h2>
-          {auditLogs.length === 0 ? (
-            <p className="muted" style={{ marginTop: "1rem" }}>No recent activity found.</p>
-          ) : (
-            <div className="stack" style={{ marginTop: "1.25rem", gap: "0" }}>
-              {auditLogs.map((log: any) => (
-                <div key={log._id} className="row" style={{ padding: "0.75rem 0", alignItems: "flex-start" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-                      <span style={{ color: "white", fontSize: "0.9rem", fontWeight: 500 }}>{log.actor?.name || log.actor?.id || 'System'}</span>
-                      <span className="muted" style={{ fontSize: "0.85rem" }}>did</span>
-                      <span className="badge" style={{ fontSize: "0.75rem" }}>{log.action}</span>
-                    </div>
-                    <div className="muted" style={{ fontSize: "0.85rem" }}>
-                      Target: {log.target?.id || 'None'} {log.target?.product ? `(${log.target.product})` : ""}
-                    </div>
-                  </div>
-                  <span className="muted" style={{ fontSize: "0.75rem" }}>
-                    {new Date(log.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Quick Links / Settings */}
-        <div className="card">
-          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}><Key size={20} /> SSO Configuration</h2>
-          {org?.slug ? (
-            <>
-              <p className="muted" style={{ marginTop: "1rem", marginBottom: "1rem", fontSize: "0.9rem" }}>
-                Your Enterprise SSO is configured. Members can sign in using this organization slug.
-              </p>
-              <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", background: "rgba(0,0,0,0.3)", padding: "0.75rem", borderRadius: "8px" }}>
-                <code style={{ flex: 1, wordBreak: "break-all", fontSize: "1.1rem", color: "var(--primary)" }}>{org.slug}</code>
-                <CopyButton text={org.slug} />
-              </div>
-            </>
-          ) : (
-            <p className="muted" style={{ marginTop: "1rem" }}>SSO is not enabled on this plan.</p>
-          )}
-        </div>
+      {/* Audit Log Table */}
+      <div className="card">
+        <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}><History size={20} /> Audit Log</h2>
+        {auditLogs.length === 0 ? (
+          <p className="muted" style={{ marginTop: "1rem" }}>No recent activity found.</p>
+        ) : (
+          <div style={{ overflowX: "auto", marginTop: "1.25rem" }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Action</th>
+                  <th>Product</th>
+                  <th>Outcome</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map((log: any) => (
+                  <tr key={log._id}>
+                    <td className="muted" style={{ whiteSpace: "nowrap" }}>{new Date(log.createdAt).toLocaleString()}</td>
+                    <td><span className="badge">{log.action}</span></td>
+                    <td>{log.target?.product || "—"}</td>
+                    <td>
+                      <div>
+                        Target: {log.target?.name || log.target?.id || "—"}
+                      </div>
+                      <div className="muted" style={{ fontSize: "0.85rem" }}>
+                        By: {log.actor?.name || log.actor?.id || "System"}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+

@@ -51,7 +51,7 @@ function LoginContent() {
     <main className="center-layout">
       <div className="card">
         <Link href="/" className="back-link">← Home</Link>
-        <h1>Welcome Back</h1>
+        <h1>Sign in</h1>
         <p className="subtitle">Sign in to access your dashboard.</p>
 
         {error && <div className="error-msg" role="alert">{error}</div>}
@@ -107,14 +107,14 @@ function LoginContent() {
             }
           }}
         >
-          <div className="form-group">
-            <label htmlFor="orgSlug">Organization slug</label>
+          <button type="submit" className="btn btn-secondary" style={{ width: "100%", padding: "0.75rem 1.5rem" }} disabled={ssoLoading || !slug.trim()}>
+            {ssoLoading ? "Continuing..." : "Continue with Okta"}
+          </button>
+          <div className="form-group" style={{ marginTop: "1rem", marginBottom: 0 }}>
+            <label htmlFor="orgSlug">Enterprise org slug</label>
             <input id="orgSlug" value={slug} onChange={(e) => setSlug(e.target.value)} required placeholder="acme-corp-…" />
             <p className="hint">From Org → SSO slug in the console</p>
           </div>
-          <button type="submit" className="btn btn-secondary" disabled={ssoLoading || !slug.trim()}>
-            {ssoLoading ? "Continuing..." : "Continue with Okta"}
-          </button>
         </form>
 
         <p style={{ marginTop: "2rem", textAlign: "center", fontSize: "0.875rem" }}>

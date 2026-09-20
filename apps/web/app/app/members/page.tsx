@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { CopyButton } from "../../components/copy-button";
 import { useAppSession } from "../session-context";
-import toast from "react-hot-toast";
 
 type Member = { id: string; email: string; name: string; role: string; status: string };
 
@@ -12,6 +11,8 @@ export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [inviteToken, setInviteToken] = useState("");
   const [inviteError, setInviteError] = useState("");
+  const [removeError, setRemoveError] = useState("");
+  const [removeSuccess, setRemoveSuccess] = useState("");
   const [isInviting, setIsInviting] = useState(false);
   const canInvite = user.role === "owner" || user.role === "admin";
 
@@ -42,7 +43,6 @@ export default function MembersPage() {
       setInviteToken(data.token);
       (e.target as HTMLFormElement).reset();
     } catch (err: any) {
-      toast.error(err.message);
       setInviteError(err.message);
     } finally {
       setIsInviting(false);
@@ -52,6 +52,8 @@ export default function MembersPage() {
   
   async function handleRemoveMember(targetUserId: string) {
     if (!confirm("Are you sure you want to remove this member?")) return;
+    setRemoveError("");
+    setRemoveSuccess("");
     
     try {
       const res = await fetch(`/api/orgs/${user.orgId}/members/${targetUserId}`, {
@@ -62,10 +64,10 @@ export default function MembersPage() {
         const data = await res.json();
         throw new Error(data.message || "Failed to remove member");
       }
-      toast.success("Member removed successfully");
+      setRemoveSuccess("Member removed successfully");
       await load();
     } catch (err: any) {
-      toast.error(err.message);
+      setRemoveError(err.message);
     }
   }
 
@@ -79,6 +81,8 @@ export default function MembersPage() {
       </div>
 
       <div className="card">
+        {removeError && <div className="error-msg" role="alert" style={{ marginBottom: "1rem" }}>{removeError}</div>}
+        {removeSuccess && <div style={{ background: "rgba(34, 197, 94, 0.1)", color: "#4ade80", padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(34, 197, 94, 0.2)", marginBottom: "1.5rem", fontSize: "0.875rem" }}>{removeSuccess}</div>}
         {members.length === 0 ? (
           <p className="muted">No members found.</p>
         ) : (

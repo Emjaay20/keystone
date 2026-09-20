@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Shield } from "lucide-react";
 
 const PRODUCTS = [
   {
@@ -34,7 +35,7 @@ const PILLARS = [
   {
     k: "04",
     title: "Policy stays in domain",
-    body: "IAM rules live in packages/domain, not in page.tsx. Next.js is the adapter. Tests hit the domain with no UI runtime.",
+    body: "Access rules live in a testable domain module. The console is a client.",
   },
 ];
 
@@ -55,11 +56,11 @@ export default function Home() {
   return (
     <div className="lp">
       <header className="lp-nav">
-        <Link href="/" className="lp-nav-brand">
-          Keystone
+        <Link href="/" className="lp-nav-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Shield size={24} /> Keystone
         </Link>
-        <div className="lp-nav-actions">
-          <Link href="/login" className="btn btn-secondary">
+        <div className="lp-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <Link href="/login" style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', fontWeight: 500 }}>
             Sign in
           </Link>
           <Link href="/register" className="btn">
@@ -75,12 +76,15 @@ export default function Home() {
           Keystone is the IAM and entitlements control plane for MailGuard, BrandWatch, and CertRadar.
           Humans and services authenticate here. Authorization — who may do what, on which product, until when — is decided and audited in one place.
         </p>
-        <div className="lp-hero-ctas">
+        <div style={{ marginBottom: "2.5rem", padding: "1rem 1.25rem", background: "rgba(255,255,255,0.03)", border: "1px solid var(--card-border)", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "1rem", fontFamily: "var(--font-geist-mono), ui-monospace, monospace", fontSize: "0.85rem", color: "#a5b4fc" }}>
+          <span>Session</span> <span style={{ color: "rgba(255,255,255,0.3)" }}>→</span> <span>Membership</span> <span style={{ color: "rgba(255,255,255,0.3)" }}>→</span> <span>Grant</span>
+        </div>
+        <div className="lp-hero-ctas" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
           <Link href="/register" className="btn">
             Create an account
           </Link>
-          <Link href="/login" className="btn btn-secondary">
-            Sign in to the console
+          <Link href="/login" style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.95rem', fontWeight: 500 }}>
+            Sign in to console &rarr;
           </Link>
         </div>
       </section>
@@ -137,20 +141,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="lp-section">
-        <h2>Tech stack</h2>
-        <p className="lp-section-lead">
-          Modular monolith. UI and HTTP adapters on Next.js. IAM logic in a framework-agnostic domain package, tested with in-memory Mongo.
-        </p>
-        <div className="lp-stack">
-          {STACK.map((item) => (
-            <span key={item} className="lp-chip">
-              {item}
-            </span>
-          ))}
-        </div>
-      </section>
-
       <section className="lp-section lp-cta">
         <div>
           <h2>Stand up a tenant</h2>
@@ -167,9 +157,6 @@ export default function Home() {
           <div className="lp-footer-links">
             <a href="https://github.com/Emjaay20/keystone" target="_blank" rel="noreferrer">
               GitHub
-            </a>
-            <a href="https://yusufsaka.dev" target="_blank" rel="noreferrer">
-              yusufsaka.dev
             </a>
           </div>
         </div>

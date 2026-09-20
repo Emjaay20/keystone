@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useAppSession } from "../session-context";
-import toast from "react-hot-toast";
-import { CreditCard, ShieldCheck } from "lucide-react";
+import { CreditCard, ShieldCheck, Key } from "lucide-react";
+import { CopyButton } from "../../components/copy-button";
 
 type SsoConfig = {
   issuer?: string;
@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [isSavingSso, setIsSavingSso] = useState(false);
   const [isChangingPlan, setIsChangingPlan] = useState(false);
   const [planError, setPlanError] = useState("");
+  const [planSuccess, setPlanSuccess] = useState("");
 
   useEffect(() => {
     if (!user.orgId) return;
@@ -35,30 +36,25 @@ export default function SettingsPage() {
   async function handleChangePlan(plan: string) {
     if (org?.plan === plan) return;
     
-    // Mock Stripe Checkout flow
-    const switchPlan = async () => {
-      setIsChangingPlan(true);
-      try {
-        const res = await fetch(`/api/orgs/${user.orgId}/plan`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ plan }),
-          credentials: "include",
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.message || "Failed to change plan");
-        await refresh();
-        return "Plan upgraded successfully!";
-      } finally {
-        setIsChangingPlan(false);
-      }
-    };
-
-    toast.promise(switchPlan(), {
-      loading: 'Redirecting to secure checkout...',
-      success: 'Subscription updated! Welcome to ' + plan.toUpperCase(),
-      error: (err) => `Payment failed: ${err.message}`,
-    });
+    setIsChangingPlan(true);
+    setPlanError("");
+    setPlanSuccess("");
+    try {
+      const res = await fetch(`/api/orgs/${user.orgId}/plan`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Failed to change plan");
+      await refresh();
+      setPlanSuccess(`Subscription updated! Welcome to ${plan.toUpperCase()}`);
+    } catch (err: any) {
+      setPlanError(`Payment failed: ${err.message}`);
+    } finally {
+      setIsChangingPlan(false);
+    }
   }
 
 
@@ -84,11 +80,9 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to save SSO config");
-      toast.success("SSO configuration saved.");
       setSsoSuccess("SSO configuration saved.");
       setSsoConfig(data);
     } catch (err: any) {
-      toast.error(err.message);
       setSsoError(err.message);
     } finally {
       setIsSavingSso(false);
@@ -106,6 +100,8 @@ export default function SettingsPage() {
         <div className="card">
           <h2>Plan</h2>
           <p className="subtitle" style={{ marginTop: "0.5rem", marginBottom: "1.25rem" }}>Current plan: <strong style={{ textTransform: "capitalize" }}>{org?.plan}</strong></p>
+          {planError && <div className="error-msg" role="alert">{planError}</div>}
+          {planSuccess && <div style={{ background: "rgba(34, 197, 94, 0.1)", color: "#4ade80", padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(34, 197, 94, 0.2)", marginBottom: "1.5rem", fontSize: "0.875rem" }}>{planSuccess}</div>}
           
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             {(["free", "team", "enterprise"] as const).map((p) => (
@@ -147,6 +143,7 @@ export default function SettingsPage() {
               Okta OIDC. Sign-in redirect URIs must include this origin plus <code>/api/auth/okta/callback</code>. Members sign in from the login page using the org slug.
             </p>
             {ssoError && <div className="error-msg" role="alert">{ssoError}</div>}
+            {ssoSuccess && <div style={{ background: "rgba(34, 197, 94, 0.1)", color: "#4ade80", padding: "0.75rem", borderRadius: "8px", border: "1px solid rgba(34, 197, 94, 0.2)", marginBottom: "1.5rem", fontSize: "0.875rem" }}>{ssoSuccess}</div>}
             
             {isOwner ? (
               <form onSubmit={handleSaveSso}>
@@ -175,6 +172,23 @@ export default function SettingsPage() {
               <p className="muted">Only the owner can change SSO settings.</p>
             )}
           </>
+        )}
+      </div>
+
+      <div className="card">
+        <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}><Key size={20} /> SSO Configuration (Read-only)</h2>
+        {org?.slug ? (
+          <>
+            <p className="muted" style={{ marginTop: "1rem", marginBottom: "1rem", fontSize: "0.9rem" }}>
+              Your Enterprise SSO is configured. Members can sign in using this organization slug.
+            </p>
+            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", background: "rgba(0,0,0,0.3)", padding: "0.75rem", borderRadius: "8px" }}>
+              <code style={{ flex: 1, wordBreak: "break-all", fontSize: "1.1rem", color: "var(--primary)" }}>{org.slug}</code>
+              <CopyButton text={org.slug} />
+            </div>
+          </>
+        ) : (
+          <p className="muted" style={{ marginTop: "1rem" }}>SSO is not enabled on this plan.</p>
         )}
       </div>
     </div>
