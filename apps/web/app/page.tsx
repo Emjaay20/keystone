@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Shield } from "lucide-react";
+import { KeystoneMark } from "./components/keystone-mark";
 
 const PRODUCTS = [
   {
@@ -39,25 +39,13 @@ const PILLARS = [
   },
 ];
 
-const STACK = [
-  "TypeScript",
-  "Next.js 16 App Router",
-  "React 19",
-  "MongoDB Atlas",
-  "Zod",
-  "Jest",
-  "Okta OIDC",
-  "jose",
-  "Vercel",
-  "npm workspaces",
-];
-
 export default function Home() {
   return (
     <div className="lp">
       <header className="lp-nav">
-        <Link href="/" className="lp-nav-brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Shield size={24} /> Keystone
+        <Link href="/" className="lp-nav-brand" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <KeystoneMark size={28} />
+          Keystone
         </Link>
         <div className="lp-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
           <Link href="/login" style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', fontWeight: 500 }}>
@@ -157,6 +145,9 @@ export default function Home() {
           <div className="lp-footer-links">
             <a href="https://github.com/Emjaay20/keystone" target="_blank" rel="noreferrer">
               GitHub
+            </a>
+            <a href="https://yusufsaka.dev" target="_blank" rel="noreferrer">
+              yusufsaka.dev
             </a>
           </div>
         </div>

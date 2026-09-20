@@ -13,7 +13,7 @@ const NAV = [
   { href: "/app/settings", label: "Settings", admin: true },
 ];
 
-import { Shield } from "lucide-react";
+import { KeystoneMark } from "../components/keystone-mark";
 
 function Chrome({ children }: { children: React.ReactNode }) {
   const { user, org } = useAppSession();
@@ -34,8 +34,9 @@ function Chrome({ children }: { children: React.ReactNode }) {
     <div className="shell" style={{ display: 'block' }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 2rem', borderBottom: '1px solid var(--card-border)', background: 'rgba(13, 15, 18, 0.85)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: 0 }}>
-             <Shield size={20} /> Keystone
+          <div className="brand" style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: 0 }}>
+            <KeystoneMark size={28} />
+            Keystone
           </div>
           <span style={{ color: 'var(--card-border)' }}>/</span>
           <strong style={{ fontSize: '1rem' }}>{org?.name}</strong>

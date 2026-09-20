@@ -113,7 +113,7 @@ function LoginContent() {
           <div className="form-group" style={{ marginTop: "1rem", marginBottom: 0 }}>
             <label htmlFor="orgSlug">Enterprise org slug</label>
             <input id="orgSlug" value={slug} onChange={(e) => setSlug(e.target.value)} required placeholder="acme-corp-…" />
-            <p className="hint">From Org → SSO slug in the console</p>
+            <p className="hint">Required only for company Okta login.</p>
           </div>
         </form>
 
