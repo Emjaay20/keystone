@@ -4,7 +4,7 @@
   --background: #0d0f12;
   --foreground: #f4f4f5;
   --card-bg: rgba(25, 28, 35, 0.7);
-  --card-border: rgba(255, 255, 255, 0.1);
+  --card-border: rgba(255, 255, 255, 0.08);
   --primary: #6366f1;
   --primary-hover: #4f46e5;
   --danger: #ef4444;
@@ -528,10 +528,6 @@ p.subtitle {
   padding: 1.4rem 1.35rem;
 }
 
-.lp-tile:first-child {
-  border-left: 2px solid var(--primary);
-}
-
 .lp-tile h3 {
   font-size: 1.05rem;
   margin-bottom: 0.45rem;
@@ -570,7 +566,6 @@ p.subtitle {
   margin: 0 auto 4rem;
   padding: 2.25rem 1.75rem;
   border: 1px solid var(--card-border);
-  border-left: 2px solid var(--primary);
   border-radius: 16px;
   background: var(--card-bg);
   display: flex;
